@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Finance Tracker — Bootstrap Final</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- SheetJS (xlsx) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    :root { --card-radius: .85rem; }
+    body { background: var(--bs-body-bg); color: var(--bs-body-color); }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: .75rem; }
+    .calendar-day {
+      background: var(--bs-card-bg);
+      border-radius: var(--card-radius);
+      padding: .6rem;
+      min-height: 92px;
+      box-shadow: 0 6px 18px rgba(17,24,39,0.04);
+      font-size: 0.88rem;
+      display:flex; flex-direction:column;
+    }
+    .calendar-day .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:.25rem; }
+    .date-num { font-weight:600; color:var(--bs-body-color); }
+    .small-note { font-size:0.78rem; color:var(--bs-muted-color); }
+    .income { color:#10b981; font-weight:700; margin-left:.4rem; }
+    .expense { color:#ef4444; font-weight:700; margin-left:.4rem; }
+    .cat-list { color:var(--bs-body-color); margin-top:.25rem; font-size:0.82rem; line-height:1.05rem; }
+    .card-compact { border-radius: var(--card-radius); box-shadow: 0 8px 24px rgba(15,23,42,0.04); }
+    .chart-canvas { height:180px !important; width:100% !important; }
+    .progress { height:0.7rem; border-radius: .5rem; overflow:hidden; }
+    @media (max-width: 900px) {
+      .calendar-day { min-height: 80px; font-size:0.8rem; }
+      .chart-canvas { height: 200px !important; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container py-4">
+  <!-- Header -->
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div class="d-flex align-items-center gap-3">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="4" height="12" rx="1" fill="#0aa" /><rect x="8" y="2" width="4" height="16" rx="1" fill="#09f" /><rect x="14" y="10" width="4" height="8" rx="1" fill="#f90" /></svg>
+      <h3 class="mb-0">Finance Tracker <small class="text-muted ms-2">Bootstrap</small></h3>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a href="yearly.html" class="btn btn-outline-primary btn-sm">Yearly Summary</a>
+      <button id="toggleChartsBtn" class="btn btn-dark btn-sm">Hide Charts</button>
+      <button id="exportBtn" class="btn btn-success btn-sm">Export to Excel</button>
+      <button id="darkToggleBtn" class="btn btn-outline-secondary btn-sm">🌙 Dark</button>
+    </div>
+  </div>
+
+  <!-- Actions + Month nav -->
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <button class="btn btn-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#incomeCollapse">Add Income</button>
+    <button class="btn btn-outline-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#expenseCollapse">Add Expense</button>
+    <button class="btn btn-warning btn-sm" data-bs-toggle="collapse" data-bs-target="#startCollapse">Set Starting Balance</button>
+    <button class="btn btn-info btn-sm" data-bs-toggle="collapse" data-bs-target="#budgetCollapse">Set Budgets</button>
+
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <button id="prevMonthBtn" class="btn btn-sm btn-outline-secondary">◀</button>
+      <div id="monthLabel" class="fw-semibold"></div>
+      <button id="nextMonthBtn" class="btn btn-sm btn-outline-secondary">▶</button>
+    </div>
+  </div>
+
+  <!-- Collapsible forms -->
+  <div class="collapse mb-3" id="incomeCollapse">
+    <div class="card p-3 card-compact">
+      <form id="incomeForm" class="row g-2 align-items-center">
+        <div class="col-md-3"><input type="date" id="incomeDate" class="form-control" required></div>
+        <div class="col-md-3">
+          <select id="incomeCategory" class="form-select">
+            <option>Salary</option><option>Freelance</option><option>Bonus</option><option>Interest</option><option>Other</option>
+          </select>
+        </div>
+        <div class="col-md-2"><input type="number" id="incomeAmount" class="form-control" placeholder="Amount" required></div>
+        <div class="col-md-3"><input type="text" id="incomeNote" class="form-control" placeholder="Note (optional)"></div>
+        <div class="col-md-1 d-grid"><button class="btn btn-primary">Save</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="collapse mb-3" id="expenseCollapse">
+    <div class="card p-3 card-compact">
+      <form id="expenseForm" class="row g-2 align-items-center">
+        <div class="col-md-3"><input type="date" id="expenseDate" class="form-control" required></div>
+        <div class="col-md-3">
+          <select id="expenseCategory" class="form-select">
+            <option>Food</option><option>Travel</option><option>Bills</option><option>Shopping</option><option>Entertainment</option><option>EMI</option><option>Other</option>
+          </select>
+        </div>
+        <div class="col-md-2"><input type="number" id="expenseAmount" class="form-control" placeholder="Amount" required></div>
+        <div class="col-md-3"><input type="text" id="expenseNote" class="form-control" placeholder="Note (optional)"></div>
+        <div class="col-md-1 d-grid"><button class="btn btn-outline-primary">Save</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="collapse mb-3" id="startCollapse">
+    <div class="card p-3 card-compact">
+      <form id="startForm" class="row g-2 align-items-center">
+        <div class="col-md-3"><input type="number" id="startAmount" class="form-control" placeholder="Starting balance ₹"></div>
+        <div class="col-md-2 d-grid"><button class="btn btn-warning">Save</button></div>
+        <div class="col text-muted small">Applies only to the selected month.</div>
+      </form>
+    </div>
+  </div>
+
+  <div class="collapse mb-3" id="budgetCollapse">
+    <div class="card p-3 card-compact">
+      <form id="budgetForm" class="row g-2 align-items-center">
+        <div class="col-auto"><input type="number" id="budgetFood" class="form-control" placeholder="Food ₹"></div>
+        <div class="col-auto"><input type="number" id="budgetTravel" class="form-control" placeholder="Travel ₹"></div>
+        <div class="col-auto"><input type="number" id="budgetBills" class="form-control" placeholder="Bills ₹"></div>
+        <div class="col-auto"><input type="number" id="budgetShopping" class="form-control" placeholder="Shopping ₹"></div>
+        <div class="col-auto"><input type="number" id="budgetEntertainment" class="form-control" placeholder="Entertainment ₹"></div>
+        <div class="col-auto"><input type="number" id="budgetEMI" class="form-control" placeholder="EMI ₹"></div>
+        <div class="col-auto"><input type="number" id="budgetOther" class="form-control" placeholder="Other ₹"></div>
+        <div class="col-auto d-grid"><button class="btn btn-info">Save</button></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4"><div class="card p-3 card-compact"><div class="small text-muted">Starting Balance</div><div id="startBal" class="h4">₹0</div></div></div>
+    <div class="col-md-4"><div class="card p-3 card-compact"><div class="small text-muted">Total Income</div><div id="sumIncome" class="h4">₹0</div></div></div>
+    <div class="col-md-4"><div class="card p-3 card-compact"><div class="small text-muted">Total Expense · Balance</div><div class="h5"><span id="sumExpense">₹0</span> · <span id="sumBalance">₹0</span></div></div></div>
+  </div>
+
+  <!-- Budget progress -->
+  <div class="card p-3 mb-4 card-compact">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div class="small text-muted">Budget Progress</div>
+      <div class="small text-muted">green <80% • amber 80–100% • red >100%</div>
+    </div>
+    <div id="budgetProgress"></div>
+  </div>
+
+  <!-- Calendar -->
+  <div class="card p-3 mb-4 card-compact">
+    <div class="calendar-grid text-center text-muted small mb-2"><div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div></div>
+    <div id="calendar" class="calendar-grid"></div>
+  </div>
+
+  <!-- Charts -->
+  <div class="row g-3 mb-4" id="chartsRow">
+    <div class="col-md-6"><div class="card p-3 card-compact text-center"><div class="small text-muted mb-2">Expense by Category</div><canvas id="pieChart" class="chart-canvas"></canvas></div></div>
+    <div class="col-md-6"><div class="card p-3 card-compact text-center"><div class="small text-muted mb-2">Weekly Expense</div><canvas id="barChart" class="chart-canvas"></canvas></div></div>
+  </div>
+
+  <!-- Transactions -->
+  <div class="card p-3 card-compact">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div class="small text-muted">Transactions (current month)</div>
+      <div class="small text-muted">Click delete to remove</div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead class="table-light small"><tr><th>Date</th><th>Type</th><th>Category</th><th class="text-end">Amount</th><th>Note</th><th></th></tr></thead>
+        <tbody id="txBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+/* ========= Finance Tracker — Bootstrap Final =========
+   Single-file app:
+   - store per-month data in localStorage
+   - startingBalance, budgets, transactions
+   - calendar, daily labels, charts, xlsx export, dark mode
+===================================================== */
+
+const LS_KEY = 'finance_tracker_v_final';
+let store = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+let viewDate = new Date(); viewDate.setDate(1);
+
+const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const categoriesExpense = ['Food','Travel','Bills','Shopping','Entertainment','EMI','Other'];
+const categoriesIncome = ['Salary','Freelance','Bonus','Interest','Other'];
+
+const $ = id => document.getElementById(id);
+const ensureMonth = k => { if(!store[k]) store[k] = { startingBalance:0, budgets:{}, transactions:[] }; };
+const saveStore = () => localStorage.setItem(LS_KEY, JSON.stringify(store));
+const keyFor = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+
+// Chart instances
+let pieChart = null, barChart = null;
+
+// Initialize date inputs to today
+function setDefaultDates(){
+  const today = new Date().toISOString().slice(0,10);
+  $('incomeDate').value = today;
+  $('expenseDate').value = today;
+}
+setDefaultDates();
+
+// populate income/expense selects (ensures consistent categories)
+const incomeSel = $('incomeCategory'), expenseSel = $('expenseCategory');
+incomeSel.innerHTML = categoriesIncome.map(c=>`<option>${c}</option>`).join('');
+expenseSel.innerHTML = categoriesExpense.map(c=>`<option>${c}</option>`).join('');
+
+// hook up collapses to auto-hide others
+const collapses = ['incomeCollapse','expenseCollapse','startCollapse','budgetCollapse'].map(id=>document.getElementById(id));
+collapses.forEach(c=>{
+  c.addEventListener('show.bs.collapse', ()=> collapses.forEach(x=>{ if(x!==c) bootstrap.Collapse.getOrCreateInstance(x).hide(); }) );
+});
+
+// Forms handling
+document.getElementById('incomeForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const k = keyFor(viewDate); ensureMonth(k);
+  const date = $('incomeDate').value;
+  const category = $('incomeCategory').value || 'Income';
+  const amount = parseFloat($('incomeAmount').value) || 0;
+  const note = $('incomeNote').value.trim();
+  if(amount>0){ store[k].transactions.push({ id: `${Date.now()}_${Math.random().toString(36).slice(2,8)}`, date, type:'income', category, amount, note }); saveStore(); }
+  bootstrap.Collapse.getOrCreateInstance(document.getElementById('incomeCollapse')).hide();
+  e.target.reset(); setDefaultDates(); renderAll();
+});
+
+document.getElementById('expenseForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const k = keyFor(viewDate); ensureMonth(k);
+  const date = $('expenseDate').value;
+  const category = $('expenseCategory').value || 'Expense';
+  const amount = parseFloat($('expenseAmount').value) || 0;
+  const note = $('expenseNote').value.trim();
+  if(amount>0){ store[k].transactions.push({ id: `${Date.now()}_${Math.random().toString(36).slice(2,8)}`, date, type:'expense', category, amount, note }); saveStore(); }
+  bootstrap.Collapse.getOrCreateInstance(document.getElementById('expenseCollapse')).hide();
+  e.target.reset(); setDefaultDates(); renderAll();
+});
+
+document.getElementById('startForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const k = keyFor(viewDate); ensureMonth(k);
+  const amount = parseFloat($('startAmount').value) || 0;
+  store[k].startingBalance = amount; saveStore();
+  bootstrap.Collapse.getOrCreateInstance(document.getElementById('startCollapse')).hide();
+  e.target.reset(); renderAll();
+});
+
+document.getElementById('budgetForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const k = keyFor(viewDate); ensureMonth(k);
+  const budgets = {
+    Food:+$('budgetFood').value||0,
+    Travel:+$('budgetTravel').value||0,
+    Bills:+$('budgetBills').value||0,
+    Shopping:+$('budgetShopping').value||0,
+    Entertainment:+$('budgetEntertainment').value||0,
+    EMI:+$('budgetEMI').value||0,
+    Other:+$('budgetOther').value||0
+  };
+  store[k].budgets = budgets; saveStore();
+  bootstrap.Collapse.getOrCreateInstance(document.getElementById('budgetCollapse')).hide();
+  e.target.reset(); renderAll();
+});
+
+// Month navigation
+$('prevMonthBtn').addEventListener('click', ()=>{ viewDate.setMonth(viewDate.getMonth()-1); renderAll(); });
+$('nextMonthBtn').addEventListener('click', ()=>{ viewDate.setMonth(viewDate.getMonth()+1); renderAll(); });
+
+// Hide/Show charts
+$('toggleChartsBtn').addEventListener('click', ()=>{
+  const el = $('chartsRow'); el.classList.toggle('d-none');
+  $('toggleChartsBtn').textContent = el.classList.contains('d-none') ? 'Show Charts' : 'Hide Charts';
+});
+
+// Dark mode
+const html = document.documentElement;
+const themeKey = 'ft_theme';
+(function restoreTheme(){
+  if(localStorage.getItem(themeKey)==='dark'){ html.setAttribute('data-bs-theme','dark'); $('darkToggleBtn').textContent='☀️ Light'; }
+  else { html.setAttribute('data-bs-theme','light'); $('darkToggleBtn').textContent='🌙 Dark'; }
+})();
+$('darkToggleBtn').addEventListener('click', ()=>{
+  const cur = html.getAttribute('data-bs-theme');
+  if(cur==='dark'){ html.setAttribute('data-bs-theme','light'); localStorage.setItem(themeKey,'light'); $('darkToggleBtn').textContent='🌙 Dark'; }
+  else { html.setAttribute('data-bs-theme','dark'); localStorage.setItem(themeKey,'dark'); $('darkToggleBtn').textContent='☀️ Light'; }
+});
+
+// Export to XLSX (SheetJS) with running balance
+$('exportBtn').addEventListener('click', ()=>{
+  const k = keyFor(viewDate); ensureMonth(k);
+  const month = store[k];
+  let running = month.startingBalance || 0;
+  const rows = (month.transactions || []).slice().sort((a,b)=>a.date.localeCompare(b.date)).map(t=>{
+    running += (t.type==='income'? t.amount : -t.amount);
+    return { Date:t.date, Type:t.type, Category:t.category, Amount:t.amount, Note:t.note||'', Balance: running };
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, `Finance_${k}`);
+  XLSX.writeFile(wb, `Finance_${k}.xlsx`);
+});
+
+// Render everything
+function renderAll(){
+  const k = keyFor(viewDate); ensureMonth(k);
+  $('monthLabel').textContent = `${monthNames[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
+  renderSummary();
+  renderBudgetProgress();
+  renderCalendar();
+  renderTable();
+  renderCharts();
+}
+
+function renderSummary(){
+  const k = keyFor(viewDate); const month = store[k];
+  const inc = (month.transactions||[]).filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const exp = (month.transactions||[]).filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  $('startBal').textContent = `₹${(month.startingBalance||0)}`;
+  $('sumIncome').textContent = `₹${inc}`;
+  $('sumExpense').textContent = `₹${exp}`;
+  $('sumBalance').textContent = `₹${(month.startingBalance||0) + inc - exp}`;
+}
+
+function renderBudgetProgress(){
+  const k = keyFor(viewDate); ensureMonth(k);
+  const month = store[k];
+  const budgets = month.budgets || {};
+  const spent = {};
+  (month.transactions || []).filter(t=>t.type==='expense').forEach(t => { spent[t.category] = (spent[t.category]||0) + t.amount; });
+
+  const cats = Object.keys(budgets);
+  if(cats.length===0){
+    $('budgetProgress').innerHTML = '<div class="text-muted small">No budgets set for this month.</div>';
+    return;
+  }
+
+  let html = '';
+  cats.forEach(cat => {
+    const limit = budgets[cat] || 0;
+    if(limit <= 0) return;
+
+    const used = Math.round((spent[cat] || 0) * 100) / 100;            // spent amount (rounded)
+    const pctRaw = (used / limit) * 100;                               // raw percent (can be >100)
+    const pctForBar = Math.max(0, Math.min(100, Math.round(pctRaw)));  // capped to 0..100 for bar width
+
+    // Decide color based on raw percent (so overspend hits danger)
+    const color = pctRaw < 80 ? 'bg-success' : (pctRaw <= 100 ? 'bg-warning' : 'bg-danger');
+
+    html += `
+      <div class="mb-2">
+        <div class="d-flex justify-content-between small"><div>${cat}</div><div>₹${used} / ₹${limit}</div></div>
+        <div class="progress mt-1"><div class="progress-bar ${color}" role="progressbar" style="width:${pctForBar}%"></div></div>
+      </div>`;
+  });
+
+  $('budgetProgress').innerHTML = html || '<div class="text-muted small">No budgets set for this month.</div>';
+}
+
+
+function renderCalendar(){
+  const k = keyFor(viewDate); ensureMonth(k);
+  const monthData = store[k];
+  calendarClear();
+  const startDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
+  const days = new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 0).getDate();
+
+  // blanks
+  for(let i=0;i<startDay;i++){
+    const blank = document.createElement('div');
+    calendarAppend(blank);
+  }
+
+  for(let d=1; d<=days; d++){
+    const DD = String(d).padStart(2,'0');
+    const MM = String(viewDate.getMonth()+1).padStart(2,'0');
+    const YYYY = viewDate.getFullYear();
+    const dateStr = `${YYYY}-${MM}-${DD}`;
+    const todays = (monthData.transactions || []).filter(t=>t.date === dateStr);
+
+    const inc = todays.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+    const exp = todays.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+
+    const cell = document.createElement('div'); cell.className='calendar-day';
+    const isToday = (() => {
+      const now = new Date(); return now.getFullYear()===YYYY && now.getMonth()===viewDate.getMonth() && now.getDate()===d;
+    })();
+
+    // header
+    const header = document.createElement('div'); header.className='header';
+    const left = document.createElement('div'); left.className='date-num'; left.textContent = d;
+    if(isToday) left.style.color = '#10b981';
+    const right = document.createElement('div'); right.className='small-note';
+    right.innerHTML = `<span class="income">+₹${inc}</span> <span class="expense">-₹${exp}</span>`;
+    header.appendChild(left); header.appendChild(right);
+    cell.appendChild(header);
+
+    // top expense categories
+    const byCat = {};
+    todays.forEach(t => { if(t.type==='expense') byCat[t.category] = (byCat[t.category]||0) + t.amount; });
+    const lines = Object.entries(byCat).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([c,a])=>`• ${c}: ₹${a}`);
+    if(lines.length){
+      const list = document.createElement('div'); list.className='cat-list';
+      list.innerHTML = lines.join('<br>');
+      cell.appendChild(list);
+    }
+
+    calendarAppend(cell);
+  }
+}
+
+function calendarClear(){ $('calendar').innerHTML=''; }
+function calendarAppend(el){ $('calendar').appendChild(el); }
+
+function renderTable(){
+  const k = keyFor(viewDate); ensureMonth(k);
+  const tx = (store[k].transactions || []).slice().sort((a,b)=>a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  const tbody = $('txBody'); tbody.innerHTML='';
+  tx.forEach(t=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${t.date}</td>
+      <td class="${t.type==='income'?'text-success':'text-danger'}">${t.type}</td>
+      <td>${t.category}</td>
+      <td class="text-end">₹${t.amount}</td>
+      <td>${t.note||''}</td>
+      <td class="text-end"><button class="btn btn-sm btn-outline-danger btn-delete" data-id="${t.id}">Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+  Array.from(document.querySelectorAll('.btn-delete')).forEach(b=>{
+    b.onclick = ()=>{
+      const id = b.dataset.id;
+      const k2 = keyFor(viewDate);
+      const idx = (store[k2].transactions || []).findIndex(x=>x.id===id);
+      if(idx>-1){ if(confirm('Delete this transaction?')){ store[k2].transactions.splice(idx,1); saveStore(); renderAll(); } }
+    };
+  });
+}
+
+function renderCharts(){
+  const k = keyFor(viewDate); ensureMonth(k);
+  const month = store[k];
+  // pie data: expense by category
+  const catTotals = {};
+  (month.transactions || []).filter(t=>t.type==='expense').forEach(t=>{ catTotals[t.category] = (catTotals[t.category]||0) + t.amount; });
+  const labels = Object.keys(catTotals), data = Object.values(catTotals);
+
+  // bar: weekly expenses (5 buckets)
+  const weeks = [0,0,0,0,0];
+  (month.transactions || []).filter(t=>t.type==='expense').forEach(t=>{
+    const day = parseInt(t.date.slice(-2),10);
+    const idx = Math.min(4, Math.floor((day-1)/7));
+    weeks[idx] += t.amount;
+  });
+
+  try{ if(pieChart) pieChart.destroy(); }catch(e){}
+  try{ if(barChart) barChart.destroy(); }catch(e){}
+
+  pieChart = new Chart($('pieChart').getContext('2d'), {
+    type: 'pie',
+    data: { labels, datasets: [{ data, backgroundColor: ['#ff7b7b','#7db8ff','#7ee4b7','#ffd27a','#bda1ff','#9be7ff','#ffc9de'] }] },
+    options: { plugins:{ legend:{ position:'bottom' } }, maintainAspectRatio:false }
+  });
+
+  barChart = new Chart($('barChart').getContext('2d'), {
+    type: 'bar',
+    data: { labels:['Week 1','Week 2','Week 3','Week 4','Week 5'], datasets:[{ label:'Expense', data: weeks, backgroundColor:'#4f46e5' }] },
+    options: { plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true } }, maintainAspectRatio:false }
+  });
+}
+
+// boot
+(function boot(){
+  ensureMonth(keyFor(viewDate));
+  // Restore theme
+  const theme = localStorage.getItem('ft_theme'); if(theme==='dark'){ document.documentElement.setAttribute('data-bs-theme','dark'); $('darkToggleBtn').textContent='☀️ Light'; } else { document.documentElement.setAttribute('data-bs-theme','light'); $('darkToggleBtn').textContent='🌙 Dark'; }
+
+  renderAll();
+})();
+</script>
+
+</body>
+</html>

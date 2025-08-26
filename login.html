@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Login — Finance Tracker</title>
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    body {
+      background: #f8f9fa;
+    }
+    .login-container {
+      max-width: 400px;
+      margin: 80px auto;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="login-container card shadow-sm p-4">
+    <h3 class="text-center mb-3">Finance Tracker</h3>
+    <div class="mb-3">
+      <label>Email</label>
+      <input type="email" class="form-control" id="email" placeholder="you@example.com" required>
+    </div>
+    <div class="mb-3">
+      <label>Password</label>
+      <input type="password" class="form-control" id="password" placeholder="********" required>
+    </div>
+    <div class="d-flex gap-2">
+      <button id="loginBtn" class="btn btn-primary w-50">Login</button>
+      <button id="signupBtn" class="btn btn-outline-secondary w-50">Sign Up</button>
+    </div>
+    <div id="message" class="mt-3 text-center text-muted small"></div>
+    <div class="mt-3 text-center">
+      <button id="logoutBtn" class="btn btn-sm btn-danger d-none">Logout</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Supabase JS -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+  // 🔑 Replace with your Supabase project details
+  const SUPABASE_URL = "https://bchophlaojqnabbqydsk.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjaG9waGxhb2pxbmFiYnF5ZHNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyMDM3MjksImV4cCI6MjA3MTc3OTcyOX0.Qeebuu4RqlNq01JkxMlMoyFolSDRIx61ReKZSm0axq0";
+
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const emailInput = document.getElementById("email");
+  const passwordInput = document.getElementById("password");
+  const messageDiv = document.getElementById("message");
+  const loginBtn = document.getElementById("loginBtn");
+  const signupBtn = document.getElementById("signupBtn");
+  const logoutBtn = document.getElementById("logoutBtn");
+
+  async function login() {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: emailInput.value,
+      password: passwordInput.value
+    });
+    if (error) {
+      messageDiv.textContent = error.message;
+    } else {
+      messageDiv.textContent = "✅ Login successful, redirecting...";
+      window.location.href = "finance_v3.html";
+    }
+  }
+
+  async function signup() {
+    const { data, error } = await supabaseClient.auth.signUp({
+      email: emailInput.value,
+      password: passwordInput.value
+    });
+    if (error) {
+      messageDiv.textContent = error.message;
+    } else {
+      messageDiv.textContent = "✅ Check your email to confirm registration!";
+    }
+  }
+
+  async function logout() {
+    await supabaseClient.auth.signOut();
+    messageDiv.textContent = "Logged out.";
+    logoutBtn.classList.add("d-none");
+  }
+
+  loginBtn.addEventListener("click", login);
+  signupBtn.addEventListener("click", signup);
+  logoutBtn.addEventListener("click", logout);
+
+  // Auto-check session on load
+  async function checkSession() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+      // Already logged in → redirect
+      window.location.href = "finance_v3.html";
+    }
+  }
+  checkSession();
+</script>
+</body>
+</html>
