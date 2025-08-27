@@ -19,6 +19,9 @@ const keyFor = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')
 // Chart instances
 let pieChart = null, barChart = null;
 
+var today = new Date;
+    document.getElementById('titleDate').innerHTML= today.toDateString();
+
 // Set default date inputs
 // Initialize date inputs to today
 function setDefaultDates(){
@@ -194,6 +197,68 @@ $('darkToggleBtn').addEventListener('click', () => {
     $('darkToggleBtn').textContent='☀️ Light';
   }
 });
+
+
+const SUPABASE_URL = "https://bchophlaojqnabbqydsk.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjaG9waGxhb2pxbmFiYnF5ZHNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyMDM3MjksImV4cCI6MjA3MTc3OTcyOX0.Qeebuu4RqlNq01JkxMlMoyFolSDRIx61ReKZSm0axq0";
+
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ===== Supabase Logout Handler =====
+// If Supabase is used, ensure the client is initialized somewhere like:
+// const supabase = window.supabase?.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+async function checkSession() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+      // Already logged in → redirect
+      //window.location.href = "./finance_v3.01/index.html";
+      return 1;
+    }
+    return 0;
+  }
+
+
+document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+  try {
+
+    // Check if Supabase client is available and session exists
+    if (checkSession()) {
+      const { data, error } = await supabaseClient.auth.getSession();
+      if (error) {
+        console.warn('Supabase session check error:', error.message);
+      }
+      const session = data?.session || null;
+
+      if (session) {
+        // Terminate Supabase session
+        const { error: signOutError } = await supabaseClient.auth.signOut();
+        if (signOutError) {
+          console.error('Supabase sign-out failed:', signOutError.message);
+          alert('Could not log out from Supabase. Please try again.');
+          return;
+        }
+        // Optional: clear any local app state
+        // localStorage.removeItem('finance_tracker_v_final');
+
+        alert('Logged out from Supabase session.');
+        // Navigate to login page
+        window.location.href = '../login.html';
+        return;
+      }
+    }
+
+    // If no Supabase or no session, treat as local session
+    alert('Local session detected (no Supabase auth).');
+    // Temporary: navigate to login page
+    //window.location.href = '../login.html';
+  } catch (e) {
+    console.error('Logout handler error:', e);
+    alert('Unexpected error during logout.');
+  }
+});
+
+
 
 $('exportBtn').addEventListener('click', () => {
   const k = keyFor(viewDate); ensureMonth(k);
