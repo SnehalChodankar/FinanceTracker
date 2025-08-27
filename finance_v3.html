@@ -15,122 +15,170 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
   <style>
-    :root { --card-radius: .85rem; }
-    body { background: var(--bs-body-bg); color: var(--bs-body-color); }
-    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: .75rem; }
-    .calendar-day {
-      background: var(--bs-card-bg);
-      border-radius: var(--card-radius);
-      padding: .6rem;
-      min-height: 92px;
-      box-shadow: 0 6px 18px rgba(17,24,39,0.04);
-      font-size: 0.88rem;
-      display:flex; flex-direction:column;
-    }
-    .calendar-day .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:.25rem; }
-    .date-num { font-weight:600; color:var(--bs-body-color); }
-    .small-note { font-size:0.78rem; color:var(--bs-muted-color); }
-    .income { color:#10b981; font-weight:700; margin-left:.4rem; }
-    .expense { color:#ef4444; font-weight:700; margin-left:.4rem; }
-    .cat-list { color:var(--bs-body-color); margin-top:.25rem; font-size:0.82rem; line-height:1.05rem; }
-    .card-compact { border-radius: var(--card-radius); box-shadow: 0 8px 24px rgba(15,23,42,0.04); }
-    .chart-canvas { height:180px !important; width:100% !important; }
-    .progress { height:0.7rem; border-radius: .5rem; overflow:hidden; }
-    @media (max-width: 900px) {
-      .calendar-day { min-height: 80px; font-size:0.8rem; }
-      .chart-canvas { height: 200px !important; }
-    }
+:root {
+  --card-radius: .85rem;
+}
+body {
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+}
 
-/* Enhanced slider styles for a more modern look */
-.budget-slider-container {
-  margin-bottom: .5rem;
-  padding: .4rem .6rem;
+/* Calendar */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: .75rem;
+}
+.calendar-day {
   background: var(--bs-card-bg);
-  border-radius: .4rem;
-  border: 1px solid var(--bs-border-color);
-  transition: box-shadow 0.2s;
+  border-radius: var(--card-radius);
+  padding: .6rem;
+  min-height: 92px;
+  box-shadow: 0 6px 18px rgba(17,24,39,0.04);
+  font-size: .88rem;
+  display: flex;
+  flex-direction: column;
 }
-.budget-slider-container:hover {
-  box-shadow: 0 0 8px rgba(13, 110, 253, 0.2);
+.calendar-day .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: .25rem;
+}
+.date-num {
+  font-weight: 600;
+  color: var(--bs-body-color);
+}
+.small-note {
+  font-size: .78rem;
+  color: var(--bs-muted-color);
+}
+.income {
+  color: #10b981;
+  font-weight: 700;
+  margin-left: .4rem;
+}
+.expense {
+  color: #ef4444;
+  font-weight: 700;
+  margin-left: .4rem;
+}
+.cat-list {
+  color: var(--bs-body-color);
+  margin-top: .25rem;
+  font-size: .82rem;
+  line-height: 1.05rem;
 }
 
+/* Cards & Charts */
+.card-compact {
+  border-radius: var(--card-radius);
+  box-shadow: 0 8px 24px rgba(15,23,42,0.04);
+}
+.chart-canvas {
+  height: 180px !important;
+  width: 100% !important;
+}
+
+/* Progress bars */
+.progress {
+  height: 0.7rem;
+  border-radius: .5rem;
+  overflow: hidden;
+}
+
+/* Compact slider styles */
+#budgetForm .btn-sm {
+  font-size: 0.9rem;
+  padding: 0.4rem 0.75rem;
+}
+
+/* Enhanced slider styles */
+.budget-slider-container {
+  margin-bottom: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bs-card-bg);
+  border-radius: var(--card-radius);
+  border: 1px solid var(--bs-border-color);
+}
 .budget-slider-label {
   display: flex;
   justify-content: space-between;
-  font-size: .8rem;
-  margin-bottom: .2rem;
-  font-weight: 600;
-  color: #495057;
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
 }
-
 .budget-value {
   font-weight: 600;
   color: #0d6efd;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  font-size: 0.9em;
 }
-
+/* Track */
 .slider-input {
-  width: 100%;
-  height: 6px;
-  border-radius: 3px;
-  background: linear-gradient(90deg, #0d6efd, #6c63ff);
-  cursor: pointer;
-  transition: background 0.3s, box-shadow 0.2s;
-  border: none;
-  outline: none;
   -webkit-appearance: none;
-      appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(
+    to right,
+    #0d6efd 0%,
+    #0d6efd var(--slider-percent, 0%),
+    #e9ecef var(--slider-percent, 0%),
+    #e9ecef 100%
+  );
+  outline: none;
+  transition: background 0.3s ease;
+  cursor: pointer;
 }
-
-/* Track style for Webkit */
-.slider-input::-webkit-slider-runnable-track {
-  height: 6px;
-  background: linear-gradient(90deg, #0d6efd, #6c63ff);
-  border-radius: 3px;
-}
-/* Thumb style for Webkit */
+/* Thumb */
 .slider-input::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 14px;
-  height: 14px;
-  background-color: #0d6efd;
+  width: 20px;
+  height: 20px;
+  margin-top: -6px;
   border-radius: 50%;
-  box-shadow: 0 0 4px rgba(13, 110, 253, 0.6);
-  margin-top: -4px; /* align thumb vertically with track */
-  transition: background-color 0.2s, box-shadow 0.2s;
+  background: #fff;
+  border: 2px solid #0d6efd;
+  box-shadow: 0 2px 6px rgba(13, 110, 253, 0.4);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .slider-input:hover::-webkit-slider-thumb {
-  box-shadow: 0 0 6px rgba(13, 110, 253, 0.8);
-  background-color: #0956d2;
+  transform: scale(1.1);
+  box-shadow: 0 4px 10px rgba(13, 110, 253, 0.5);
 }
-/* Track style for Firefox */
+.slider-input:active::-webkit-slider-thumb {
+  transform: scale(1);
+  box-shadow: 0 2px 6px rgba(13, 110, 253, 0.6);
+}
+/* Firefox */
 .slider-input::-moz-range-track {
-  height: 6px;
-  background: linear-gradient(90deg, #0d6efd, #6c63ff);
-  border-radius: 3px;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: #e9ecef;
 }
-/* Thumb style for Firefox */
+.slider-input::-moz-range-progress {
+  height: 8px;
+  border-radius: 4px;
+  background: #0d6efd;
+}
 .slider-input::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  background-color: #0d6efd;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  box-shadow: 0 0 4px rgba(13, 110, 253, 0.6);
-  border: none;
-  cursor: pointer;
+  background: #fff;
+  border: 2px solid #0d6efd;
+  box-shadow: 0 2px 6px rgba(13, 110, 253, 0.4);
 }
-.slider-input:hover::-moz-range-thumb {
-  box-shadow: 0 0 6px rgba(13, 110, 253, 0.8);
-  background-color: #0956d2;
-}
-/* Add smooth transition to slider input */
-.slider-input {
-  transition: background 0.3s, box-shadow 0.2s, transform 0.2s;
-}
-.slider-input:active {
-  transform: scale(1.02);
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .calendar-day {
+    min-height: 80px;
+    font-size: 0.8rem;
+  }
+  .chart-canvas {
+    height: 200px !important;
+  }
 }
 
 
@@ -211,20 +259,42 @@
     </div>
   </div>
 
-  <div class="collapse mb-3" id="budgetCollapse">
-    <div class="card p-3 card-compact">
-      <form id="budgetForm" class="row g-2">
-  <div id="budgetSlidersContainer" class="col-12">
-    <!-- sliders inserted here -->
-  </div>
-  <div class="col-12 d-flex gap-2">
-    <button type="button" id="saveBudgets" class="btn btn-info btn-sm">Save All Budgets</button>
-    <button type="button" id="cancelBudget" class="btn btn-secondary btn-sm" data-bs-toggle="collapse" data-bs-target="#budgetCollapse">Cancel</button>
-  </div>
-</form>
+    <div class="collapse mb-3" id="budgetCollapse">
+      <div class="card p-3 card-compact">
+        <form id="budgetForm" class="row g-2">
+          <div class="col-12">
+            <div class="form-check form-switch mb-2">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="budgetModeToggle"
+              />
+              <label class="form-check-label small" for="budgetModeToggle">
+                Use Manual Inputs
+              </label>
+            </div>
+          </div>
 
+          <div id="budgetSlidersContainer" class="col-12"></div>
+          <div id="budgetInputsContainer" class="col-12 d-none"></div>
+
+          <div class="col-12 d-flex gap-2">
+            <button type="button" id="saveBudgets" class="btn btn-info btn-sm">
+              Save All Budgets
+            </button>
+            <button
+              type="button"
+              id="cancelBudget"
+              class="btn btn-secondary btn-sm"
+              data-bs-toggle="collapse"
+              data-bs-target="#budgetCollapse"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
-  </div>
 
   <!-- Summary -->
   <div class="row g-3 mb-4">
@@ -305,78 +375,6 @@ function setDefaultDates(){
 }
 setDefaultDates();
 
-// ===== Helpers for slider-based budgets =====
-function getStartingBalanceFor(monthKey) {
-  return store[monthKey].startingBalance || 10000;
-}
-
-function createBudgetSliders(monthKey) {
-  const container = document.getElementById('budgetSlidersContainer');
-  container.innerHTML = '';
-  const maxAmt = getStartingBalanceFor(monthKey);
-  
-  // Only these 5 categories (no EMI, no Other)
-  const budgetCategories = ['Food', 'Travel', 'Bills', 'Shopping', 'Entertainment'];
-  
-  budgetCategories.forEach(cat => {
-    const existing = store[monthKey].budgets[cat] || 0;
-    const wrapper = document.createElement('div');
-    wrapper.className = 'budget-slider-container';
-    wrapper.innerHTML = `
-      <div class="budget-slider-label">
-        <span>${cat}</span>
-        <span class="budget-value">₹${existing}</span>
-      </div>
-      <input type="range"
-             class="slider-input"
-             min="0" max="${maxAmt}" step="100"
-             value="${existing}"
-             data-cat="${cat}">
-      <div class="d-flex justify-content-between small text-muted mt-1">
-        
-      </div>`;
-    container.appendChild(wrapper);
-
-    const slider = wrapper.querySelector('input[type="range"]');
-    const valueSpan = wrapper.querySelector('.budget-value');
-    slider.addEventListener('input', () => {
-      valueSpan.textContent = '₹' + Number(slider.value).toLocaleString('en-IN');
-    });
-  });
-}
-
-// Replace collapse-show handler for Set Budgets button:
-document.querySelector('button[data-bs-target="#budgetCollapse"]').addEventListener('click', () => {
-  const monthKey = keyFor(viewDate);
-  createBudgetSliders(monthKey);
-});
-
-// Override the original budgetForm submit:
-document.getElementById('saveBudgets').addEventListener('click', () => {
-  const monthKey = keyFor(viewDate); // Use current viewed month
-  const sliders = document.querySelectorAll('#budgetSlidersContainer input[type="range"]');
-  ensureMonth(monthKey);
-  
-  // Keep existing EMI and Other budgets, only update the 5 slider categories
-  const currentBudgets = store[monthKey].budgets || {};
-  const newBudgets = { ...currentBudgets }; // preserve EMI/Other if they exist
-  
-  sliders.forEach(s => {
-    const cat = s.dataset.cat;
-    const amt = +s.value;
-    if (amt > 0) {
-      newBudgets[cat] = amt;
-    } else {
-      delete newBudgets[cat]; // remove if set to 0
-    }
-  });
-  
-  store[monthKey].budgets = newBudgets;
-  saveStore();
-  bootstrap.Collapse.getOrCreateInstance(document.getElementById('budgetCollapse')).hide();
-  renderAll();
-});
-
 
 // populate income/expense selects (ensures consistent categories)
 const incomeSel = $('incomeCategory'), expenseSel = $('expenseCategory');
@@ -424,6 +422,103 @@ document.getElementById('startForm').addEventListener('submit', e=>{
 });
 
 
+// ===== Helpers for slider-based budgets =====
+function getStartingBalanceFor(monthKey) {
+  return store[monthKey].startingBalance || 10000;
+}
+
+function createBudgetViews(monthKey) {
+  const sliderCont = $('budgetSlidersContainer');
+  const inputCont  = $('budgetInputsContainer');
+  sliderCont.innerHTML = '';
+  inputCont.innerHTML  = '';
+  const maxAmt = getStartingBalanceFor(monthKey);
+
+  // Build sliders & manual inputs
+  categoriesExpense.forEach(cat => {
+    const existing = store[monthKey].budgets[cat] || 0;
+
+    // Slider
+    const sw = document.createElement('div');
+    sw.className = 'budget-slider-container';
+    sw.innerHTML = `
+      <div class="budget-slider-label">
+        <span>${cat}</span>
+        <span class="budget-value">₹${existing.toLocaleString('en-IN')}</span>
+      </div>
+      <input type="range"
+             class="slider-input"
+             min="0" max="${maxAmt}" step="100"
+             value="${existing}"
+             data-cat="${cat}">
+      <div class="d-flex justify-content-between small text-muted mt-1">
+        <span>₹0</span><span>₹${maxAmt.toLocaleString('en-IN')}</span>
+      </div>`;
+    sliderCont.appendChild(sw);
+    const slider = sw.querySelector('input');
+    const vs = sw.querySelector('.budget-value');
+    slider.addEventListener('input', () => {
+      const pct = (slider.value - slider.min) / (slider.max - slider.min) * 100;
+      slider.style.setProperty('--slider-percent', pct + '%');
+      vs.textContent = '₹' + Number(slider.value).toLocaleString('en-IN');
+    });
+    slider.dispatchEvent(new Event('input'));
+
+    // Manual input
+    const iw = document.createElement('div');
+    iw.className = 'input-group input-group-sm mb-2';
+    iw.innerHTML = `
+      <span class="input-group-text">${cat} ₹</span>
+      <input type="number"
+             class="form-control manual-input"
+             min="0" max="${maxAmt}" step="100"
+             value="${existing}"
+             data-cat="${cat}">`;
+    inputCont.appendChild(iw);
+  });
+}
+
+// Toggle between slider/manual
+$('budgetModeToggle').addEventListener('change', e => {
+  const useManual = e.target.checked;
+  $('budgetSlidersContainer').classList.toggle('d-none', useManual);
+  $('budgetInputsContainer').classList.toggle('d-none', !useManual);
+});
+
+
+
+// Show budget view when opening collapse
+document.querySelector('button[data-bs-target="#budgetCollapse"]').addEventListener('click', () => {
+  const mk = keyFor(viewDate); ensureMonth(mk);
+  createBudgetViews(mk);
+});
+
+// Override the original budgetForm submit:
+document.getElementById('saveBudgets').addEventListener('click', () => {
+  const monthKey = keyFor(viewDate); // Use current viewed month
+  const sliders = document.querySelectorAll('#budgetSlidersContainer input[type="range"]');
+  ensureMonth(monthKey);
+  
+  // Keep existing EMI and Other budgets, only update the 5 slider categories
+  const currentBudgets = store[monthKey].budgets || {};
+  const newBudgets = { ...currentBudgets }; // preserve EMI/Other if they exist
+  
+  sliders.forEach(s => {
+    const cat = s.dataset.cat;
+    const amt = +s.value;
+    if (amt > 0) {
+      newBudgets[cat] = amt;
+    } else {
+      delete newBudgets[cat]; // remove if set to 0
+    }
+  });
+  
+  store[monthKey].budgets = newBudgets;
+  saveStore();
+  bootstrap.Collapse.getOrCreateInstance(document.getElementById('budgetCollapse')).hide();
+  renderAll();
+});
+
 
 // Month navigation
 $('prevMonthBtn').addEventListener('click', ()=>{ viewDate.setMonth(viewDate.getMonth()-1); renderAll(); });
@@ -436,16 +531,27 @@ $('toggleChartsBtn').addEventListener('click', ()=>{
 });
 
 // Dark mode
-const html = document.documentElement;
-const themeKey = 'ft_theme';
 (function restoreTheme(){
-  if(localStorage.getItem(themeKey)==='dark'){ html.setAttribute('data-bs-theme','dark'); $('darkToggleBtn').textContent='☀️ Light'; }
-  else { html.setAttribute('data-bs-theme','light'); $('darkToggleBtn').textContent='🌙 Dark'; }
+  const t = localStorage.getItem('ft_theme');
+  if (t==='dark') {
+    document.documentElement.setAttribute('data-bs-theme','dark');
+    $('darkToggleBtn').textContent='☀️ Light';
+  } else {
+    document.documentElement.setAttribute('data-bs-theme','light');
+    $('darkToggleBtn').textContent='🌙 Dark';
+  }
 })();
-$('darkToggleBtn').addEventListener('click', ()=>{
-  const cur = html.getAttribute('data-bs-theme');
-  if(cur==='dark'){ html.setAttribute('data-bs-theme','light'); localStorage.setItem(themeKey,'light'); $('darkToggleBtn').textContent='🌙 Dark'; }
-  else { html.setAttribute('data-bs-theme','dark'); localStorage.setItem(themeKey,'dark'); $('darkToggleBtn').textContent='☀️ Light'; }
+$('darkToggleBtn').addEventListener('click', () => {
+  const cur = document.documentElement.getAttribute('data-bs-theme');
+  if (cur==='dark') {
+    document.documentElement.setAttribute('data-bs-theme','light');
+    localStorage.setItem('ft_theme','light');
+    $('darkToggleBtn').textContent='🌙 Dark';
+  } else {
+    document.documentElement.setAttribute('data-bs-theme','dark');
+    localStorage.setItem('ft_theme','dark');
+    $('darkToggleBtn').textContent='☀️ Light';
+  }
 });
 
 // Export to XLSX (SheetJS) with running balance
@@ -574,26 +680,31 @@ function renderCalendar(){
 function calendarClear(){ $('calendar').innerHTML=''; }
 function calendarAppend(el){ $('calendar').appendChild(el); }
 
-function renderTable(){
-  const k = keyFor(viewDate); ensureMonth(k);
-  const tx = (store[k].transactions || []).slice().sort((a,b)=>a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
-  const tbody = $('txBody'); tbody.innerHTML='';
-  tx.forEach(t=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${t.date}</td>
+function renderTable() {
+  const k = keyFor(viewDate); const txs=store[k].transactions.slice()
+    .sort((a,b)=>(a.date-b.date)||a.id.localeCompare(b.id));
+  const tb = $('txBody'); tb.innerHTML='';
+  txs.forEach(t=> {
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td>${t.date}</td>
       <td class="${t.type==='income'?'text-success':'text-danger'}">${t.type}</td>
       <td>${t.category}</td>
       <td class="text-end">₹${t.amount}</td>
       <td>${t.note||''}</td>
-      <td class="text-end"><button class="btn btn-sm btn-outline-danger btn-delete" data-id="${t.id}">Delete</button></td>`;
-    tbody.appendChild(tr);
+      <td class="text-end">
+        <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${t.id}">Delete</button>
+      </td>`;
+    tb.appendChild(tr);
   });
-  Array.from(document.querySelectorAll('.btn-delete')).forEach(b=>{
-    b.onclick = ()=>{
-      const id = b.dataset.id;
-      const k2 = keyFor(viewDate);
-      const idx = (store[k2].transactions || []).findIndex(x=>x.id===id);
-      if(idx>-1){ if(confirm('Delete this transaction?')){ store[k2].transactions.splice(idx,1); saveStore(); renderAll(); } }
+  document.querySelectorAll('.btn-delete').forEach(b=>{
+    b.onclick=()=>{
+      const id=b.dataset.id; const idx=store[keyFor(viewDate)].transactions
+                         .findIndex(x=>x.id===id);
+      if(idx>-1 && confirm('Delete this transaction?')) {
+        store[keyFor(viewDate)].transactions.splice(idx,1);
+        saveStore(); renderAll();
+      }
     };
   });
 }
