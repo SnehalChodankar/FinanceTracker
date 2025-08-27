@@ -40,6 +40,100 @@
       .calendar-day { min-height: 80px; font-size:0.8rem; }
       .chart-canvas { height: 200px !important; }
     }
+
+/* Enhanced slider styles for a more modern look */
+.budget-slider-container {
+  margin-bottom: .5rem;
+  padding: .4rem .6rem;
+  background: var(--bs-card-bg);
+  border-radius: .4rem;
+  border: 1px solid var(--bs-border-color);
+  transition: box-shadow 0.2s;
+}
+.budget-slider-container:hover {
+  box-shadow: 0 0 8px rgba(13, 110, 253, 0.2);
+}
+
+.budget-slider-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: .8rem;
+  margin-bottom: .2rem;
+  font-weight: 600;
+  color: #495057;
+}
+
+.budget-value {
+  font-weight: 600;
+  color: #0d6efd;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 0.9em;
+}
+
+.slider-input {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #0d6efd, #6c63ff);
+  cursor: pointer;
+  transition: background 0.3s, box-shadow 0.2s;
+  border: none;
+  outline: none;
+  -webkit-appearance: none;
+      appearance: none;
+}
+
+/* Track style for Webkit */
+.slider-input::-webkit-slider-runnable-track {
+  height: 6px;
+  background: linear-gradient(90deg, #0d6efd, #6c63ff);
+  border-radius: 3px;
+}
+/* Thumb style for Webkit */
+.slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background-color: #0d6efd;
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(13, 110, 253, 0.6);
+  margin-top: -4px; /* align thumb vertically with track */
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+.slider-input:hover::-webkit-slider-thumb {
+  box-shadow: 0 0 6px rgba(13, 110, 253, 0.8);
+  background-color: #0956d2;
+}
+/* Track style for Firefox */
+.slider-input::-moz-range-track {
+  height: 6px;
+  background: linear-gradient(90deg, #0d6efd, #6c63ff);
+  border-radius: 3px;
+}
+/* Thumb style for Firefox */
+.slider-input::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background-color: #0d6efd;
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(13, 110, 253, 0.6);
+  border: none;
+  cursor: pointer;
+}
+.slider-input:hover::-moz-range-thumb {
+  box-shadow: 0 0 6px rgba(13, 110, 253, 0.8);
+  background-color: #0956d2;
+}
+/* Add smooth transition to slider input */
+.slider-input {
+  transition: background 0.3s, box-shadow 0.2s, transform 0.2s;
+}
+.slider-input:active {
+  transform: scale(1.02);
+}
+
+
   </style>
 </head>
 <body>
@@ -119,16 +213,16 @@
 
   <div class="collapse mb-3" id="budgetCollapse">
     <div class="card p-3 card-compact">
-      <form id="budgetForm" class="row g-2 align-items-center">
-        <div class="col-auto"><input type="number" id="budgetFood" class="form-control" placeholder="Food ₹"></div>
-        <div class="col-auto"><input type="number" id="budgetTravel" class="form-control" placeholder="Travel ₹"></div>
-        <div class="col-auto"><input type="number" id="budgetBills" class="form-control" placeholder="Bills ₹"></div>
-        <div class="col-auto"><input type="number" id="budgetShopping" class="form-control" placeholder="Shopping ₹"></div>
-        <div class="col-auto"><input type="number" id="budgetEntertainment" class="form-control" placeholder="Entertainment ₹"></div>
-        <div class="col-auto"><input type="number" id="budgetEMI" class="form-control" placeholder="EMI ₹"></div>
-        <div class="col-auto"><input type="number" id="budgetOther" class="form-control" placeholder="Other ₹"></div>
-        <div class="col-auto d-grid"><button class="btn btn-info">Save</button></div>
-      </form>
+      <form id="budgetForm" class="row g-2">
+  <div id="budgetSlidersContainer" class="col-12">
+    <!-- sliders inserted here -->
+  </div>
+  <div class="col-12 d-flex gap-2">
+    <button type="button" id="saveBudgets" class="btn btn-info btn-sm">Save All Budgets</button>
+    <button type="button" id="cancelBudget" class="btn btn-secondary btn-sm" data-bs-toggle="collapse" data-bs-target="#budgetCollapse">Cancel</button>
+  </div>
+</form>
+
     </div>
   </div>
 
@@ -211,6 +305,79 @@ function setDefaultDates(){
 }
 setDefaultDates();
 
+// ===== Helpers for slider-based budgets =====
+function getStartingBalanceFor(monthKey) {
+  return store[monthKey].startingBalance || 10000;
+}
+
+function createBudgetSliders(monthKey) {
+  const container = document.getElementById('budgetSlidersContainer');
+  container.innerHTML = '';
+  const maxAmt = getStartingBalanceFor(monthKey);
+  
+  // Only these 5 categories (no EMI, no Other)
+  const budgetCategories = ['Food', 'Travel', 'Bills', 'Shopping', 'Entertainment'];
+  
+  budgetCategories.forEach(cat => {
+    const existing = store[monthKey].budgets[cat] || 0;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'budget-slider-container';
+    wrapper.innerHTML = `
+      <div class="budget-slider-label">
+        <span>${cat}</span>
+        <span class="budget-value">₹${existing}</span>
+      </div>
+      <input type="range"
+             class="slider-input"
+             min="0" max="${maxAmt}" step="100"
+             value="${existing}"
+             data-cat="${cat}">
+      <div class="d-flex justify-content-between small text-muted mt-1">
+        
+      </div>`;
+    container.appendChild(wrapper);
+
+    const slider = wrapper.querySelector('input[type="range"]');
+    const valueSpan = wrapper.querySelector('.budget-value');
+    slider.addEventListener('input', () => {
+      valueSpan.textContent = '₹' + Number(slider.value).toLocaleString('en-IN');
+    });
+  });
+}
+
+// Replace collapse-show handler for Set Budgets button:
+document.querySelector('button[data-bs-target="#budgetCollapse"]').addEventListener('click', () => {
+  const monthKey = keyFor(viewDate);
+  createBudgetSliders(monthKey);
+});
+
+// Override the original budgetForm submit:
+document.getElementById('saveBudgets').addEventListener('click', () => {
+  const monthKey = keyFor(viewDate); // Use current viewed month
+  const sliders = document.querySelectorAll('#budgetSlidersContainer input[type="range"]');
+  ensureMonth(monthKey);
+  
+  // Keep existing EMI and Other budgets, only update the 5 slider categories
+  const currentBudgets = store[monthKey].budgets || {};
+  const newBudgets = { ...currentBudgets }; // preserve EMI/Other if they exist
+  
+  sliders.forEach(s => {
+    const cat = s.dataset.cat;
+    const amt = +s.value;
+    if (amt > 0) {
+      newBudgets[cat] = amt;
+    } else {
+      delete newBudgets[cat]; // remove if set to 0
+    }
+  });
+  
+  store[monthKey].budgets = newBudgets;
+  saveStore();
+  bootstrap.Collapse.getOrCreateInstance(document.getElementById('budgetCollapse')).hide();
+  renderAll();
+});
+
+
 // populate income/expense selects (ensures consistent categories)
 const incomeSel = $('incomeCategory'), expenseSel = $('expenseCategory');
 incomeSel.innerHTML = categoriesIncome.map(c=>`<option>${c}</option>`).join('');
@@ -256,22 +423,7 @@ document.getElementById('startForm').addEventListener('submit', e=>{
   e.target.reset(); renderAll();
 });
 
-document.getElementById('budgetForm').addEventListener('submit', e=>{
-  e.preventDefault();
-  const k = keyFor(viewDate); ensureMonth(k);
-  const budgets = {
-    Food:+$('budgetFood').value||0,
-    Travel:+$('budgetTravel').value||0,
-    Bills:+$('budgetBills').value||0,
-    Shopping:+$('budgetShopping').value||0,
-    Entertainment:+$('budgetEntertainment').value||0,
-    EMI:+$('budgetEMI').value||0,
-    Other:+$('budgetOther').value||0
-  };
-  store[k].budgets = budgets; saveStore();
-  bootstrap.Collapse.getOrCreateInstance(document.getElementById('budgetCollapse')).hide();
-  e.target.reset(); renderAll();
-});
+
 
 // Month navigation
 $('prevMonthBtn').addEventListener('click', ()=>{ viewDate.setMonth(viewDate.getMonth()-1); renderAll(); });

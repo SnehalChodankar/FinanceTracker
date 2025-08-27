@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Finance Tracker — Bootstrap Final</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- SheetJS (xlsx) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root { --card-radius: .85rem; }
+    body { background: var(--bs-body-bg); color: var(--bs-body-color); }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: .75rem; }
+    .calendar-day {
+      background: var(--bs-card-bg);
+      border-radius: var(--card-radius);
+      padding: .6rem;
+      min-height: 92px;
+      box-shadow: 0 6px 18px rgba(17,24,39,0.04);
+      font-size: 0.88rem;
+      display:flex; flex-direction:column;
+    }
+    .calendar-day .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:.25rem; }
+    .date-num { font-weight:600; color:var(--bs-body-color); }
+    .small-note { font-size:0.78rem; color:var(--bs-muted-color); }
+    .income { color:#10b981; font-weight:700; margin-left:.4rem; }
+    .expense { color:#ef4444; font-weight:700; margin-left:.4rem; }
+    .cat-list { color:var(--bs-body-color); margin-top:.25rem; font-size:0.82rem; line-height:1.05rem; }
+    .card-compact { border-radius: var(--card-radius); box-shadow: 0 8px 24px rgba(15,23,42,0.04); }
+    .chart-canvas { height:180px !important; width:100% !important; }
+    .progress { height:0.7rem; border-radius: .5rem; overflow:hidden; }
+    @media (max-width: 900px) {
+      .calendar-day { min-height: 80px; font-size:0.8rem; }
+      .chart-canvas { height: 200px !important; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container py-4">
+  <!-- Header -->
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div class="d-flex align-items-center gap-3">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="4" height="12" rx="1" fill="#0aa" /><rect x="8" y="2" width="4" height="16" rx="1" fill="#09f" /><rect x="14" y="10" width="4" height="8" rx="1" fill="#f90" /></svg>
+      <h3 class="mb-0">Finance Tracker <small class="text-muted ms-2">Bootstrap</small></h3>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a href="yearly.html" class="btn btn-outline-primary btn-sm">Yearly Summary</a>
+      <button id="toggleChartsBtn" class="btn btn-dark btn-sm">Hide Charts</button>
+      <button id="exportBtn" class="btn btn-success btn-sm">Export to Excel</button>
+      <button id="darkToggleBtn" class="btn btn-outline-secondary btn-sm">🌙 Dark</button>
+      <button id="logoutBtn" class="btn btn-danger btn-sm">Logout</button>
+    </div>
+  </div>
+
+  <!-- Actions + Month nav -->
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <button class="btn btn-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#incomeCollapse">Add Income</button>
+    <button class="btn btn-outline-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#expenseCollapse">Add Expense</button>
+    <button class="btn btn-warning btn-sm" data-bs-toggle="collapse" data-bs-target="#startCollapse">Set Starting Balance</button>
+    <button class="btn btn-info btn-sm" data-bs-toggle="collapse" data-bs-target="#budgetCollapse">Set Budgets</button>
+
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <button id="prevMonthBtn" class="btn btn-sm btn-outline-secondary">◀</button>
+      <div id="monthLabel" class="fw-semibold"></div>
+      <button id="nextMonthBtn" class="btn btn-sm btn-outline-secondary">▶</button>
+    </div>
+  </div>
+
+  <!-- Collapsible forms -->
+  <div class="collapse mb-3" id="incomeCollapse">
+    <div class="card p-3 card-compact">
+      <form id="incomeForm" class="row g-2 align-items-center">
+        <div class="col-md-3"><input type="date" id="incomeDate" class="form-control" required></div>
+        <div class="col-md-3">
+          <select id="incomeCategory" class="form-select">
+            <option>Salary</option><option>Freelance</option><option>Bonus</option><option>Interest</option><option>Other</option>
+          </select>
+        </div>
+        <div class="col-md-2"><input type="number" id="incomeAmount" class="form-control" placeholder="Amount" required></div>
+        <div class="col-md-3"><input type="text" id="incomeNote" class="form-control" placeholder="Note (optional)"></div>
+        <div class="col-md-1 d-grid"><button class="btn btn-primary">Save</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="collapse mb-3" id="expenseCollapse">
+    <div class="card p-3 card-compact">
+      <form id="expenseForm" class="row g-2 align-items-center">
+        <div class="col-md-3"><input type="date" id="expenseDate" class="form-control" required></div>
+        <div class="col-md-3">
+          <select id="expenseCategory" class="form-select">
+            <option>Food</option><option>Travel</option><option>Bills</option><option>Shopping</option><option>Entertainment</option><option>EMI</option><option>Other</option>
+          </select>
+        </div>
+        <div class="col-md-2"><input type="number" id="expenseAmount" class="form-control" placeholder="Amount" required></div>
+        <div class="col-md-3"><input type="text" id="expenseNote" class="form-control" placeholder="Note (optional)"></div>
+        <div class="col-md-1 d-grid"><button class="btn btn-outline-primary">Save</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="collapse mb-3" id="startCollapse">
+    <div class="card p-3 card-compact">
+      <form id="startForm" class="row g-2 align-items-center">
+        <div class="col-md-3"><input type="number" id="startAmount" class="form-control" placeholder="Starting balance ₹"></div>
+        <div class="col-md-2 d-grid"><button class="btn btn-warning">Save</button></div>
+        <div class="col text-muted small">Applies only to the selected month.</div>
+      </form>
+    </div>
+  </div>
+
+  <div class="collapse mb-3" id="budgetCollapse">
+    <div class="card p-3 card-compact">
+      <form id="budgetForm" class="row g-2 align-items-center">
+        <div class="col-auto"><input type="number" id="budgetFood" class="form-control" placeholder="Food ₹"></div>
+        <div class="col-auto"><input type="number" id="budgetTravel" class="form-control" placeholder="Travel ₹"></div>
+        <div class="col-auto"><input type="number" id="budgetBills" class="form-control" placeholder="Bills ₹"></div>
+        <div class="col-auto"><input type="number" id="budgetShopping" class="form-control" placeholder="Shopping ₹"></div>
+        <div class="col-auto"><input type="number" id="budgetEntertainment" class="form-control" placeholder="Entertainment ₹"></div>
+        <div class="col-auto"><input type="number" id="budgetEMI" class="form-control" placeholder="EMI ₹"></div>
+        <div class="col-auto"><input type="number" id="budgetOther" class="form-control" placeholder="Other ₹"></div>
+        <div class="col-auto d-grid"><button class="btn btn-info">Save</button></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4"><div class="card p-3 card-compact"><div class="small text-muted">Starting Balance</div><div id="startBal" class="h4">₹0</div></div></div>
+    <div class="col-md-4"><div class="card p-3 card-compact"><div class="small text-muted">Total Income</div><div id="sumIncome" class="h4">₹0</div></div></div>
+    <div class="col-md-4"><div class="card p-3 card-compact"><div class="small text-muted">Total Expense · Balance</div><div class="h5"><span id="sumExpense">₹0</span> · <span id="sumBalance">₹0</span></div></div></div>
+  </div>
+
+  <!-- Budget progress -->
+  <div class="card p-3 mb-4 card-compact">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div class="small text-muted">Budget Progress</div>
+      <div class="small text-muted">green <80% • amber 80–100% • red >100%</div>
+    </div>
+    <div id="budgetProgress"></div>
+  </div>
+
+  <!-- Calendar -->
+  <div class="card p-3 mb-4 card-compact">
+    <div class="calendar-grid text-center text-muted small mb-2"><div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div></div>
+    <div id="calendar" class="calendar-grid"></div>
+  </div>
+
+  <!-- Charts -->
+  <div class="row g-3 mb-4" id="chartsRow">
+    <div class="col-md-6"><div class="card p-3 card-compact text-center"><div class="small text-muted mb-2">Expense by Category</div><canvas id="pieChart" class="chart-canvas"></canvas></div></div>
+    <div class="col-md-6"><div class="card p-3 card-compact text-center"><div class="small text-muted mb-2">Weekly Expense</div><canvas id="barChart" class="chart-canvas"></canvas></div></div>
+  </div>
+
+  <!-- Transactions -->
+  <div class="card p-3 card-compact">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div class="small text-muted">Transactions (current month)</div>
+      <div class="small text-muted">Click delete to remove</div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead class="table-light small"><tr><th>Date</th><th>Type</th><th>Category</th><th class="text-end">Amount</th><th>Note</th><th></th></tr></thead>
+        <tbody id="txBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+/* ========= Finance Tracker (Supabase Integrated) =========
+   - Supabase auth session check
+   - Store per-user data in Supabase tables
+   - Keeps UI + rendering code intact
+   - Fixed: category rendering and budget progress using pre-seeded categories
+===================================================== */
+
+// Supabase client
+const SUPABASE_URL = "https://bchophlaojqnabbqydsk.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjaG9waGxhb2pxbmFiYnF5ZHNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyMDM3MjksImV4cCI6MjA3MTc3OTcyOX0.Qeebuu4RqlNq01JkxMlMoyFolSDRIx61ReKZSm0axq0"; // <-- replace
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let user = null;
+let viewDate = new Date(); viewDate.setDate(1);
+
+const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const categoriesExpense = ['Food','Travel','Bills','Shopping','Entertainment','EMI','Other'];
+const categoriesIncome = ['Salary','Freelance','Bonus','Interest','Other'];
+
+// category caches (for fast name<->id lookup)
+let catIdToName = {};           // { id: 'Food' }
+let expenseNameToId = {};       // { 'Food': 123 }
+let incomeNameToId  = {};       // { 'Salary': 456 }
+let expenseList = [];          // [{id,name}, ...]
+let incomeList = [];           // [{id,name}, ...]
+
+const $ = id => document.getElementById(id);
+const keyFor = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+
+let pieChart = null, barChart = null;
+
+/* ========= Auth ========= */
+async function checkSession() {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session) {
+    window.location.href = "login.html";
+    return;
+  }
+  user = session.user;
+  setDefaultDates();
+
+  // Load categories from DB (pre-seeded). Must load before populating selects / rendering.
+  await loadCategories();
+
+  populateCategories();
+  await renderAll();
+}
+checkSession();
+
+// Load all categories for this user into caches
+async function loadCategories() {
+  const { data, error } = await supabaseClient
+    .from('categories')
+    .select('id,name,type')
+    .order('id');
+
+  if (error) {
+    console.error("loadCategories error:", error);
+    return;
+  }
+
+  catIdToName = {};
+  expenseNameToId = {};
+  incomeNameToId = {};
+  expenseList = [];
+  incomeList = [];
+
+  for (const row of (data || [])) {
+    const idKey = String(row.id);
+    catIdToName[idKey] = row.name;
+    if (row.type === 'expense') {
+      expenseNameToId[row.name] = row.id;
+      expenseList.push({ id: row.id, name: row.name });
+    }
+    if (row.type === 'income')  {
+      incomeNameToId[row.name]  = row.id;
+      incomeList.push({ id: row.id, name: row.name });
+    }
+  }
+
+  console.log("Categories loaded:", catIdToName);
+}
+
+/* ========= Helpers ========= */
+function setDefaultDates(){
+  const today = new Date().toISOString().slice(0,10);
+  if($('incomeDate')) $('incomeDate').value = today;
+  if($('expenseDate')) $('expenseDate').value = today;
+}
+function populateCategories(){
+  // Populate income/expense selects from DB if available, otherwise fallback to static list
+  const incomeSel = $('incomeCategory');
+  const expenseSel = $('expenseCategory');
+
+  if(incomeSel){
+    if(incomeList.length>0){
+      incomeSel.innerHTML = incomeList.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+    } else {
+      incomeSel.innerHTML = categoriesIncome.map(c=>`<option>${c}</option>`).join('');
+    }
+  }
+
+  if(expenseSel){
+    if(expenseList.length>0){
+      expenseSel.innerHTML = expenseList.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+    } else {
+      expenseSel.innerHTML = categoriesExpense.map(c=>`<option>${c}</option>`).join('');
+    }
+  }
+
+  // Also populate budget inputs if you have a budgetInputs container with inputs having data-cat
+  // If budget inputs are generated dynamically somewhere else, keep that logic; otherwise we keep existing markup.
+}
+
+/* ========= Forms ========= */
+$('incomeForm')?.addEventListener('submit', async e=>{
+  e.preventDefault();
+  const date = $('incomeDate').value;
+  const selected = $('incomeCategory').value;
+  // Determine category_id: prefer option value as id (when categories loaded), otherwise try mapping by name
+  let category_id = null;
+  if(incomeList.length>0){
+    category_id = selected; // value is id
+  } else {
+    category_id = incomeNameToId[selected] || null;
+  }
+  const amount = parseFloat($('incomeAmount').value) || 0;
+  const note = $('incomeNote').value.trim();
+  if(amount>0){
+    const { error } = await supabaseClient.from('transactions').insert([
+      { user_id: user.id, date, type:'income', amount, notes: note, category_id: category_id }
+    ]);
+    if(error){ console.error("Insert income failed:", error); alert(error.message); }
+  }
+  bootstrap.Collapse.getOrCreateInstance(document.getElementById('incomeCollapse')).hide();
+  e.target.reset(); setDefaultDates(); await renderAll();
+});
+
+$('expenseForm')?.addEventListener('submit', async e=>{
+  e.preventDefault();
+  const date = $('expenseDate').value;
+  const selected = $('expenseCategory').value;
+  let category_id = null;
+  if(expenseList.length>0){
+    category_id = selected;
+  } else {
+    category_id = expenseNameToId[selected] || null;
+  }
+  const amount = parseFloat($('expenseAmount').value) || 0;
+  const note = $('expenseNote').value.trim();
+  if(amount>0){
+    const { error } = await supabaseClient.from('transactions').insert([
+      { user_id: user.id, date, type:'expense', amount, notes: note, category_id: category_id }
+    ]);
+    if(error){ console.error("Insert expense failed:", error); alert(error.message); }
+  }
+  bootstrap.Collapse.getOrCreateInstance(document.getElementById('expenseCollapse')).hide();
+  e.target.reset(); setDefaultDates(); await renderAll();
+});
+
+$('startForm')?.addEventListener('submit', async e=>{
+  e.preventDefault();
+  const amount = parseFloat($('startAmount').value) || 0;
+  const y=viewDate.getFullYear(), m=viewDate.getMonth()+1;
+  const { error } = await supabaseClient.from('balances').upsert(
+    [{ user_id:user.id, year:y, month:m, starting_balance: amount }],
+    { onConflict: 'user_id,year,month' }
+  );
+  if(error){ console.error("Balance upsert failed:", error); alert(error.message); }
+  bootstrap.Collapse.getOrCreateInstance(document.getElementById('startCollapse')).hide();
+  e.target.reset(); await renderAll();
+});
+
+$('budgetForm').onsubmit = async e => {
+  e.preventDefault();
+  const ym = keyFor(viewDate);
+
+  for (const input of document.querySelectorAll('#budgetInputs input')) {
+    const catName = input.dataset.cat;
+    const amount = parseFloat(input.value) || 0;
+
+    // Resolve category id via cached mapping (pre-seeded)
+    const catId = expenseNameToId[catName];
+    if (!catId) {
+      console.error(`Unknown category: ${catName}`);
+      continue;
+    }
+
+    const { error } = await supabaseClient.from('budgets').upsert({
+      user_id: user.id,
+      year_month: ym,
+      amount,
+      category_id: catId
+    }, {
+      onConflict: 'user_id,year_month,category_id'
+    });
+
+    if (error) console.error("Budget upsert error:", error);
+  }
+
+  await renderAll();
+};
+
+
+/* ========= Navigation, Theme, Export ========= */
+$('prevMonthBtn').addEventListener('click', ()=>{ viewDate.setMonth(viewDate.getMonth()-1); renderAll(); });
+$('nextMonthBtn').addEventListener('click', ()=>{ viewDate.setMonth(viewDate.getMonth()+1); renderAll(); });
+
+$('toggleChartsBtn').addEventListener('click', ()=>{
+  const el=$('chartsRow'); el.classList.toggle('d-none');
+  $('toggleChartsBtn').textContent = el.classList.contains('d-none')?'Show Charts':'Hide Charts';
+});
+
+// Dark mode
+const html = document.documentElement;
+const themeKey = 'ft_theme';
+(function restoreTheme(){
+  if(localStorage.getItem(themeKey)==='dark'){ html.setAttribute('data-bs-theme','dark'); $('darkToggleBtn').textContent='☀️ Light'; }
+  else { html.setAttribute('data-bs-theme','light'); $('darkToggleBtn').textContent='🌙 Dark'; }
+})();
+$('darkToggleBtn').addEventListener('click', ()=>{ 
+  const cur=html.getAttribute('data-bs-theme');
+  if(cur==='dark'){ html.setAttribute('data-bs-theme','light'); localStorage.setItem(themeKey,'light'); $('darkToggleBtn').textContent='🌙 Dark'; }
+  else { html.setAttribute('data-bs-theme','dark'); localStorage.setItem(themeKey,'dark'); $('darkToggleBtn').textContent='☀️ Light'; }
+});
+
+// Export to XLSX
+$('exportBtn').addEventListener('click', async ()=>{ 
+  const ym=keyFor(viewDate);
+  let running=0;
+  const { data:bal } = await supabaseClient.from('balances')
+    .select('starting_balance').eq('user_id',user.id)
+    .eq('year',viewDate.getFullYear()).eq('month',viewDate.getMonth()+1).maybeSingle();
+  running = bal?.starting_balance || 0;
+  const { data:tx=[] } = await supabaseClient.from('transactions').select('*')
+    .eq('user_id',user.id)
+    .gte('date',`${ym}-01`).lte('date',`${ym}-31`);
+  const rows = tx.sort((a,b)=>a.date.localeCompare(b.date)).map(t=>{
+    running += (t.type==='income'? Number(t.amount) : -Number(t.amount));
+    return { Date:t.date, Type:t.type, Category: catIdToName[String(t.category_id)] || t.category || '', Amount:t.amount, Note:t.notes||'', Balance:running };
+  });
+  const ws=XLSX.utils.json_to_sheet(rows), wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,`Finance_${ym}`); XLSX.writeFile(wb,`Finance_${ym}.xlsx`);
+});
+
+
+/* ========= Render ========= */
+async function renderAll(){
+  const ym = keyFor(viewDate);
+  $('monthLabel').textContent = `${monthNames[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
+
+  // Ensure category cache is up-to-date before rendering
+  await loadCategories();
+
+  const { data:tx=[] } = await supabaseClient.from('transactions')
+    .select('id,date,type,amount,notes,category_id')
+    .eq('user_id',user.id)
+    .gte('date',`${ym}-01`).lte('date',`${ym}-31`);
+
+  const { data:bal } = await supabaseClient.from('balances').select('*')
+    .eq('user_id',user.id)
+    .eq('year',viewDate.getFullYear())
+    .eq('month',viewDate.getMonth()+1)
+    .maybeSingle();
+
+  const { data:bud=[] } = await supabaseClient.from('budgets')
+    .select('id,amount,category_id')
+    .eq('user_id',user.id)
+    .eq('year_month',ym);
+
+  renderSummary(tx, bal);
+  renderBudgetProgress(tx, bud);
+  renderCalendar(tx);
+  renderTable(tx);
+  renderCharts(tx);
+}
+
+function renderSummary(tx,bal){
+  const inc=tx.filter(t=>t.type==='income').reduce((s,t)=>s+Number(t.amount),0);
+  const exp=tx.filter(t=>t.type==='expense').reduce((s,t)=>s+Number(t.amount),0);
+  $('startBal').textContent=`₹${bal?.starting_balance||0}`;
+  $('sumIncome').textContent=`₹${inc}`;
+  $('sumExpense').textContent=`₹${exp}`;
+  $('sumBalance').textContent=`₹${(bal?.starting_balance||0)+inc-exp}`;
+}
+
+function renderBudgetProgress(tx, bud){
+  // spent per category id
+  const spentById = {};
+  tx.filter(t=>t.type==='expense').forEach(t=>{
+    const cid = String(t.category_id);
+    spentById[cid] = (spentById[cid] || 0) + Number(t.amount);
+  });
+
+  if(!bud.length){
+    $('budgetProgress').innerHTML = '<div class="text-muted small">No budgets set for this month.</div>';
+    return;
+  }
+
+  let html = '';
+  bud.forEach(b=>{
+    const cid = String(b.category_id);
+    const name = catIdToName[cid] || 'Other';
+    const limit = +b.amount || 0;
+    if (limit <= 0) return;
+    const used = Math.round((spentById[cid] || 0) * 100) / 100;
+    const pctRaw   = (used / limit) * 100;
+    const pctForBar= Math.max(0, Math.min(100, Math.round(pctRaw)));
+    const color    = pctRaw < 80 ? 'bg-success' : (pctRaw <= 100 ? 'bg-warning' : 'bg-danger');
+
+    html += `
+      <div class="mb-2">
+        <div class="d-flex justify-content-between small"><div>${name}</div><div>₹${used} / ₹${limit}</div></div>
+        <div class="progress mt-1"><div class="progress-bar ${color}" role="progressbar" style="width:${pctForBar}%"></div></div>
+      </div>`;
+  });
+
+  $('budgetProgress').innerHTML = html || '<div class="text-muted small">No budgets set for this month.</div>';
+}
+
+function renderCalendar(tx){
+  $('calendar').innerHTML='';
+  const startDay=new Date(viewDate.getFullYear(),viewDate.getMonth(),1).getDay();
+  const days=new Date(viewDate.getFullYear(),viewDate.getMonth()+1,0).getDate();
+  for(let i=0;i<startDay;i++)$('calendar').appendChild(document.createElement('div'));
+  for(let d=1;d<=days;d++){
+    const dateStr=`${viewDate.getFullYear()}-${String(viewDate.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const todays=tx.filter(t=>t.date===dateStr);
+    const inc=todays.filter(t=>t.type==='income').reduce((s,t)=>s+Number(t.amount),0);
+    const exp=todays.filter(t=>t.type==='expense').reduce((s,t)=>s+Number(t.amount),0);
+    const cell=document.createElement('div'); cell.className='calendar-day';
+    const header=document.createElement('div'); header.className='header';
+    const left=document.createElement('div'); left.className='date-num'; left.textContent=d;
+    if(new Date().toISOString().slice(0,10)===dateStr) left.style.color='#10b981';
+    const right=document.createElement('div'); right.className='small-note';
+    right.innerHTML=`<span class="income">+₹${inc}</span> <span class="expense">-₹${exp}</span>`;
+    header.appendChild(left); header.appendChild(right); cell.appendChild(header);
+    $('calendar').appendChild(cell);
+  }
+}
+
+function renderTable(tx){
+  const tbody=$('txBody'); tbody.innerHTML='';
+  tx.sort((a,b)=>a.date.localeCompare(b.date)).forEach(t=>{
+    const catName = catIdToName[String(t.category_id)] || t.category || '';
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${t.date}</td><td class="${t.type==='income'?'text-success':'text-danger'}">${t.type}</td><td>${catName}</td><td class="text-end">₹${t.amount}</td><td>${t.notes||''}</td><td class="text-end"><button class="btn btn-sm btn-outline-danger" data-id="${t.id}">Delete</button></td>`;
+    tbody.appendChild(tr);
+    tr.querySelector('button').onclick=async()=>{
+      if(confirm('Delete transaction?')){
+        const { error } = await supabaseClient.from('transactions').delete().eq('id',t.id);
+        if(error){ console.error("Delete failed:", error); alert(error.message); }
+        renderAll();
+      }
+    };
+  });
+}
+
+function renderCharts(tx){
+  const catTotals={};
+  tx.filter(t=>t.type==='expense').forEach(t=>{
+    const name = catIdToName[String(t.category_id)] || 'Other';
+    catTotals[name] = (catTotals[name]||0) + Number(t.amount);
+  });
+  const labels=Object.keys(catTotals),data=Object.values(catTotals);
+  const weeks=[0,0,0,0,0];
+  tx.filter(t=>t.type==='expense').forEach(t=>{
+    const day=+t.date.split('-')[2];
+    weeks[Math.min(4,Math.floor((day-1)/7))]+=Number(t.amount);
+  });
+  try{ if(pieChart) pieChart.destroy(); }catch(e){}
+  try{ if(barChart) barChart.destroy(); }catch(e){}
+  pieChart=new Chart($('pieChart').getContext('2d'),{type:'pie',data:{labels,datasets:[{data,backgroundColor:['#ff7b7b','#7db8ff','#7ee4b7','#ffd27a','#bda1ff','#9be7ff','#ffc9de']}]},options:{plugins:{legend:{position:'bottom'}},maintainAspectRatio:false}});
+  barChart=new Chart($('barChart').getContext('2d'),{type:'bar',data:{labels:['Week 1','Week 2','Week 3','Week 4','Week 5'],datasets:[{label:'Expense',data:weeks,backgroundColor:'#4f46e5'}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}},maintainAspectRatio:false}});
+}
+</script>
+
+
+
+</body>
+</html>
