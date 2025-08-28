@@ -139,13 +139,17 @@ document.getElementById('expenseForm').addEventListener('submit', e=>{
   e.target.reset(); setDefaultDates(); renderAll();
 });
 
-document.getElementById('startForm').addEventListener('submit', e=>{
+$('startForm')?.addEventListener('submit', async e=>{
   e.preventDefault();
-  const k = keyFor(viewDate); ensureMonth(k);
   const amount = parseFloat($('startAmount').value) || 0;
-  store[k].startingBalance = amount; saveStore();
+  const y=viewDate.getFullYear(), m=viewDate.getMonth()+1;
+  const { error } = await supabaseClient.from('balances').upsert(
+    [{ user_id:user.id, year:y, month:m, starting_balance: amount }],
+    { onConflict: 'user_id,year,month' }
+  );
+  if(error){ console.error("Balance upsert failed:", error); alert(error.message); }
   bootstrap.Collapse.getOrCreateInstance(document.getElementById('startCollapse')).hide();
-  e.target.reset(); renderAll();
+  e.target.reset(); await renderAll();
 });
 
 // ========== Budget Sliders & Inputs ==========
@@ -427,16 +431,30 @@ async function renderAll() {
   renderCharts();
 }
 
-function renderSummary() {
-  const k = keyFor(viewDate); const m = store[k];
-  const inc = m.transactions.filter(t=>t.type==='income')
-               .reduce((s,t)=>s+t.amount,0);
-  const exp = m.transactions.filter(t=>t.type==='expense')
-               .reduce((s,t)=>s+t.amount,0);
-  $('startBal').textContent = `₹${m.startingBalance||0}`;
-  $('sumIncome').textContent = `₹${inc}`;
-  $('sumExpense').textContent = `₹${exp}`;
-  $('sumBalance').textContent = `₹${(m.startingBalance||0)+inc-exp}`;
+async function renderSummary() {
+  const ym = keyFor(viewDate);
+  $('monthLabel').textContent = `${monthNames[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
+
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  const user = session.user;
+
+  const { data:tx=[] } = await supabaseClient.from('transactions')
+  .select('id,date,type,amount,notes,category_id')
+  .eq('user_id',user.id)
+  .gte('date',`${ym}-01`).lte('date',`${ym}-31`);
+
+    const { data:bal } = await supabaseClient.from('balances').select('*')
+  .eq('user_id',user.id)
+  .eq('year',viewDate.getFullYear())
+  .eq('month',viewDate.getMonth()+1)
+  .maybeSingle();
+
+  const inc=tx.filter(t=>t.type==='income').reduce((s,t)=>s+Number(t.amount),0);
+  const exp=tx.filter(t=>t.type==='expense').reduce((s,t)=>s+Number(t.amount),0);
+  $('startBal').textContent=`₹${bal?.starting_balance||0}`;
+  $('sumIncome').textContent=`₹${inc}`;
+  $('sumExpense').textContent=`₹${exp}`;
+  $('sumBalance').textContent=`₹${(bal?.starting_balance||0)+inc-exp}`;
 }
 
 async function renderBudgetProgress(){
