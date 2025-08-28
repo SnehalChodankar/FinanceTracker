@@ -115,28 +115,50 @@ collapses.forEach(c=>{
 });
 
 // ========== Forms Handling ==========
-document.getElementById('incomeForm').addEventListener('submit', e=>{
+/* ========= Forms ========= */
+$('incomeForm')?.addEventListener('submit', async e=>{
   e.preventDefault();
-  const k = keyFor(viewDate); ensureMonth(k);
   const date = $('incomeDate').value;
-  const category = $('incomeCategory').value || 'Income';
+  const selected = $('incomeCategory').value;
+  // Determine category_id: prefer option value as id (when categories loaded), otherwise try mapping by name
+  let category_id = null;
+  if(incomeList.length>0){
+    category_id = selected; // value is id
+  } else {
+    category_id = incomeNameToId[selected] || null;
+  }
   const amount = parseFloat($('incomeAmount').value) || 0;
   const note = $('incomeNote').value.trim();
-  if(amount>0){ store[k].transactions.push({ id: `${Date.now()}_${Math.random().toString(36).slice(2,8)}`, date, type:'income', category, amount, note }); saveStore(); }
+  if(amount>0){
+    const { error } = await supabaseClient.from('transactions').insert([
+      { user_id: user.id, date, type:'income', amount, notes: note, category_id: category_id }
+    ]);
+    if(error){ console.error("Insert income failed:", error); alert(error.message); }
+  }
   bootstrap.Collapse.getOrCreateInstance(document.getElementById('incomeCollapse')).hide();
-  e.target.reset(); setDefaultDates(); renderAll();
+  e.target.reset(); setDefaultDates(); await renderAll();
 });
 
-document.getElementById('expenseForm').addEventListener('submit', e=>{
+$('expenseForm')?.addEventListener('submit', async e=>{
   e.preventDefault();
-  const k = keyFor(viewDate); ensureMonth(k);
   const date = $('expenseDate').value;
-  const category = $('expenseCategory').value || 'Expense';
+  const selected = $('expenseCategory').value;
+  let category_id = null;
+  if(expenseList.length>0){
+    category_id = selected;
+  } else {
+    category_id = expenseNameToId[selected] || null;
+  }
   const amount = parseFloat($('expenseAmount').value) || 0;
   const note = $('expenseNote').value.trim();
-  if(amount>0){ store[k].transactions.push({ id: `${Date.now()}_${Math.random().toString(36).slice(2,8)}`, date, type:'expense', category, amount, note }); saveStore(); }
+  if(amount>0){
+    const { error } = await supabaseClient.from('transactions').insert([
+      { user_id: user.id, date, type:'expense', amount, notes: note, category_id: category_id }
+    ]);
+    if(error){ console.error("Insert expense failed:", error); alert(error.message); }
+  }
   bootstrap.Collapse.getOrCreateInstance(document.getElementById('expenseCollapse')).hide();
-  e.target.reset(); setDefaultDates(); renderAll();
+  e.target.reset(); setDefaultDates(); await renderAll();
 });
 
 $('startForm')?.addEventListener('submit', async e=>{
@@ -333,7 +355,7 @@ async function checkSession() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
       // Already logged in → redirect
-      //window.location.href = "./finance_v3.01/index.html";
+      //window.location.href = "../../index.html";
       return 1;
     }
     return 0;
@@ -343,7 +365,7 @@ async function checkSession() {
   async function checkSessionForRedirect() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) {
-    window.location.href = "../login.html";
+    window.location.href = "login.html";
     return;
   }
   user = session.user;
@@ -382,7 +404,7 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
 
         alert('Logged out from Supabase session.');
         // Navigate to login page
-        window.location.href = '../login.html';
+        window.location.href = 'login.html';
         return;
       }
     }
@@ -457,40 +479,50 @@ async function renderSummary() {
   $('sumBalance').textContent=`₹${(bal?.starting_balance||0)+inc-exp}`;
 }
 
+
 async function renderBudgetProgress(){
-  const k = keyFor(viewDate); 
-  ensureMonth(k);
+  const ym = keyFor(viewDate);
+  const { data: { session } } = await supabaseClient.auth.getSession();
   
-  // **ADD THIS LINE** - Load budgets from database first
-  await loadBudgetsFromDB(k);
-  
-  const month = store[k];
-  const budgets = month.budgets || {};
-  const spent = {};
-  (month.transactions || []).filter(t=>t.type==='expense').forEach(t => { 
-    spent[t.category] = (spent[t.category]||0) + t.amount; 
+  const user = session.user;
+
+    const { data:bud=[] } = await supabaseClient.from('budgets')
+    .select('id,amount,category_id')
+    .eq('user_id',user.id)
+    .eq('year_month',ym);
+
+
+  const { data:tx=[] } = await supabaseClient.from('transactions')
+  .select('id,date,type,amount,notes,category_id')
+  .eq('user_id',user.id)
+  .gte('date',`${ym}-01`).lte('date',`${ym}-31`);
+
+  // spent per category id
+  const spentById = {};
+  tx.filter(t=>t.type==='expense').forEach(t=>{
+    const cid = String(t.category_id);
+    spentById[cid] = (spentById[cid] || 0) + Number(t.amount);
   });
 
-  const cats = Object.keys(budgets);
-  if(cats.length===0){
+  if(!bud.length){
     $('budgetProgress').innerHTML = '<div class="text-muted small">No budgets set for this month.</div>';
     return;
   }
 
   let html = '';
-  cats.forEach(cat => {
-    const limit = budgets[cat] || 0;
-    if(limit <= 0) return;
-
-    const used = Math.round((spent[cat] || 0) * 100) / 100;
-    const pctRaw = (used / limit) * 100;
-    const pctForBar = Math.max(0, Math.min(100, Math.round(pctRaw)));
-
-    const color = pctRaw < 80 ? 'bg-success' : (pctRaw <= 100 ? 'bg-warning' : 'bg-danger');
+  bud.forEach(b=>{
+    const cid = String(b.category_id);
+    const name = catIdToName[cid] || 'Other';
+    const limit = +b.amount || 0;
+    if (limit <= 0) return;
+    const used = Math.round((spentById[cid] || 0) * 100) / 100;
+    const pctRaw   = (used / limit) * 100;
+    const pctForBar= Math.max(0, Math.min(100, Math.round(pctRaw)));
+    const color    = pctRaw < 80 ? 'bg-success' : (pctRaw <= 100 ? 'bg-warning' : 'bg-danger');
 
     html += `
       <div class="mb-2">
-        <div class="d-flex justify-content-between small"><div>${cat}</div><div>₹${used} / ₹${limit}</div></div>
+        <div class="d-flex justify-content-between small"><div>${name}</div><div>₹${used} / ₹${limit}</div></div>
         <div class="progress mt-1"><div class="progress-bar ${color}" role="progressbar" style="width:${pctForBar}%"></div></div>
       </div>`;
   });
@@ -499,54 +531,63 @@ async function renderBudgetProgress(){
 }
 
 
-function renderCalendar(){
-  const k = keyFor(viewDate); ensureMonth(k);
-  const monthData = store[k];
-  calendarClear();
-  const startDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
-  const days = new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 0).getDate();
+async function renderCalendar(){
+  const ym = keyFor(viewDate);
+  $('monthLabel').textContent = `${monthNames[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
 
-  // blanks
-  for(let i=0;i<startDay;i++){
-    const blank = document.createElement('div');
-    calendarAppend(blank);
-  }
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  const user = session.user;
 
-  for(let d=1; d<=days; d++){
-    const DD = String(d).padStart(2,'0');
-    const MM = String(viewDate.getMonth()+1).padStart(2,'0');
-    const YYYY = viewDate.getFullYear();
-    const dateStr = `${YYYY}-${MM}-${DD}`;
-    const todays = (monthData.transactions || []).filter(t=>t.date === dateStr);
+  const { data:tx=[] } = await supabaseClient.from('transactions')
+  .select('id,date,type,amount,notes,category_id')
+  .eq('user_id',user.id)
+  .gte('date',`${ym}-01`).lte('date',`${ym}-31`);
 
-    const inc = todays.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-    const exp = todays.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
 
-    const cell = document.createElement('div'); cell.className='calendar-day';
-    const isToday = (() => {
-      const now = new Date(); return now.getFullYear()===YYYY && now.getMonth()===viewDate.getMonth() && now.getDate()===d;
-    })();
+  $('calendar').innerHTML='';
+  const startDay=new Date(viewDate.getFullYear(),viewDate.getMonth(),1).getDay();
+  const days=new Date(viewDate.getFullYear(),viewDate.getMonth()+1,0).getDate();
+  for(let i=0;i<startDay;i++)$('calendar').appendChild(document.createElement('div'));
+  for(let d=1;d<=days;d++){
+    const dateStr=`${viewDate.getFullYear()}-${String(viewDate.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const todays=tx.filter(t=>t.date===dateStr);
+    const inc=todays.filter(t=>t.type==='income').reduce((s,t)=>s+Number(t.amount),0);
+    const exp=todays.filter(t=>t.type==='expense').reduce((s,t)=>s+Number(t.amount),0);
+    const cell=document.createElement('div'); cell.className='calendar-day';
+    const header=document.createElement('div'); header.className='header';
+    const left=document.createElement('div'); left.className='date-num'; left.textContent=d;
+    if(new Date().toISOString().slice(0,10)===dateStr) left.style.color='#10b981';
+    const right=document.createElement('div'); right.className='small-note';
+    right.innerHTML=`<span class="income">+₹${inc}</span> <span class="expense">-₹${exp}</span>`;
+    header.appendChild(left); header.appendChild(right); cell.appendChild(header);
+    $('calendar').appendChild(cell);
 
-    // header
-    const header = document.createElement('div'); header.className='header';
-    const left = document.createElement('div'); left.className='date-num'; left.textContent = d;
-    if(isToday) left.style.color = '#10b981';
-    const right = document.createElement('div'); right.className='small-note';
-    right.innerHTML = `<span class="income">+₹${inc}</span> <span class="expense">-₹${exp}</span>`;
-    header.appendChild(left); header.appendChild(right);
-    cell.appendChild(header);
+    // TOP 3 EXPENSE CATEGORIES (added)
+    const byCatId = {};
+    todays.forEach(t => {
+      if (t.type === 'expense') {
+        const cid = String(t.category_id);
+        byCatId[cid] = (byCatId[cid] || 0) + Number(t.amount || 0);
+      }
+    });
 
-    // top expense categories
-    const byCat = {};
-    todays.forEach(t => { if(t.type==='expense') byCat[t.category] = (byCat[t.category]||0) + t.amount; });
-    const lines = Object.entries(byCat).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([c,a])=>`• ${c}: ₹${a}`);
-    if(lines.length){
-      const list = document.createElement('div'); list.className='cat-list';
-      list.innerHTML = lines.join('<br>');
+    const topLines = Object.entries(byCatId)
+      .map(([cid, total]) => {
+        const name = catIdToName?.[cid] || 'Uncategorized';
+        return [name, total];
+      })
+      .sort((a,b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([name, total]) => `• ${name}: ₹${total}`);
+
+    if (topLines.length) {
+      const list = document.createElement('div'); 
+      list.className = 'cat-list';
+      list.innerHTML = topLines.join('<br>');
       cell.appendChild(list);
     }
 
-    calendarAppend(cell);
+    $('calendar').appendChild(cell);
   }
 }
 
@@ -554,65 +595,63 @@ function renderCalendar(){
 function calendarClear(){ $('calendar').innerHTML=''; }
 function calendarAppend(el){ $('calendar').appendChild(el); }
 
-function renderTable() {
-  const k = keyFor(viewDate); const txs=store[k].transactions.slice()
-    .sort((a,b)=>(a.date-b.date)||a.id.localeCompare(b.id));
-  const tb = $('txBody'); tb.innerHTML='';
-  txs.forEach(t=> {
+async function renderTable(){
+  const ym = keyFor(viewDate);
+  $('monthLabel').textContent = `${monthNames[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
+
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  const user = session.user;
+
+  const { data:tx=[] } = await supabaseClient.from('transactions')
+  .select('id,date,type,amount,notes,category_id')
+  .eq('user_id',user.id)
+  .gte('date',`${ym}-01`).lte('date',`${ym}-31`);
+
+
+  const tbody=$('txBody'); tbody.innerHTML='';
+  tx.sort((a,b)=>a.date.localeCompare(b.date)).forEach(t=>{
+    const catName = catIdToName[String(t.category_id)] || t.category || '';
     const tr=document.createElement('tr');
-    tr.innerHTML=`
-      <td>${t.date}</td>
-      <td class="${t.type==='income'?'text-success':'text-danger'}">${t.type}</td>
-      <td>${t.category}</td>
-      <td class="text-end">₹${t.amount}</td>
-      <td>${t.note||''}</td>
-      <td class="text-end">
-        <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${t.id}">Delete</button>
-      </td>`;
-    tb.appendChild(tr);
-  });
-  document.querySelectorAll('.btn-delete').forEach(b=>{
-    b.onclick=()=>{
-      const id=b.dataset.id; const idx=store[keyFor(viewDate)].transactions
-                         .findIndex(x=>x.id===id);
-      if(idx>-1 && confirm('Delete this transaction?')) {
-        store[keyFor(viewDate)].transactions.splice(idx,1);
-        saveStore(); renderAll();
+    tr.innerHTML=`<td>${t.date}</td><td class="${t.type==='income'?'text-success':'text-danger'}">${t.type}</td><td>${catName}</td><td class="text-end">₹${t.amount}</td><td>${t.notes||''}</td><td class="text-end"><button class="btn btn-sm btn-outline-danger" data-id="${t.id}">Delete</button></td>`;
+    tbody.appendChild(tr);
+    tr.querySelector('button').onclick=async()=>{
+      if(confirm('Delete transaction?')){
+        const { error } = await supabaseClient.from('transactions').delete().eq('id',t.id);
+        if(error){ console.error("Delete failed:", error); alert(error.message); }
+        renderAll();
       }
     };
   });
 }
 
-function renderCharts(){
-  const k = keyFor(viewDate); ensureMonth(k);
-  const month = store[k];
-  // pie data: expense by category
-  const catTotals = {};
-  (month.transactions || []).filter(t=>t.type==='expense').forEach(t=>{ catTotals[t.category] = (catTotals[t.category]||0) + t.amount; });
-  const labels = Object.keys(catTotals), data = Object.values(catTotals);
+async function renderCharts(){
+  const ym = keyFor(viewDate);
+  $('monthLabel').textContent = `${monthNames[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
 
-  // bar: weekly expenses (5 buckets)
-  const weeks = [0,0,0,0,0];
-  (month.transactions || []).filter(t=>t.type==='expense').forEach(t=>{
-    const day = parseInt(t.date.slice(-2),10);
-    const idx = Math.min(4, Math.floor((day-1)/7));
-    weeks[idx] += t.amount;
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  const user = session.user;
+
+  const { data:tx=[] } = await supabaseClient.from('transactions')
+  .select('id,date,type,amount,notes,category_id')
+  .eq('user_id',user.id)
+  .gte('date',`${ym}-01`).lte('date',`${ym}-31`);
+  
+
+  const catTotals={};
+  tx.filter(t=>t.type==='expense').forEach(t=>{
+    const name = catIdToName[String(t.category_id)] || 'Other';
+    catTotals[name] = (catTotals[name]||0) + Number(t.amount);
   });
-
+  const labels=Object.keys(catTotals),data=Object.values(catTotals);
+  const weeks=[0,0,0,0,0];
+  tx.filter(t=>t.type==='expense').forEach(t=>{
+    const day=+t.date.split('-')[2];
+    weeks[Math.min(4,Math.floor((day-1)/7))]+=Number(t.amount);
+  });
   try{ if(pieChart) pieChart.destroy(); }catch(e){}
   try{ if(barChart) barChart.destroy(); }catch(e){}
-
-  pieChart = new Chart($('pieChart').getContext('2d'), {
-    type: 'pie',
-    data: { labels, datasets: [{ data, backgroundColor: ['#ff7b7b','#7db8ff','#7ee4b7','#ffd27a','#bda1ff','#9be7ff','#ffc9de'] }] },
-    options: { plugins:{ legend:{ position:'bottom' } }, maintainAspectRatio:false }
-  });
-
-  barChart = new Chart($('barChart').getContext('2d'), {
-    type: 'bar',
-    data: { labels:['Week 1','Week 2','Week 3','Week 4','Week 5'], datasets:[{ label:'Expense', data: weeks, backgroundColor:'#4f46e5' }] },
-    options: { plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true } }, maintainAspectRatio:false }
-  });
+  pieChart=new Chart($('pieChart').getContext('2d'),{type:'pie',data:{labels,datasets:[{data,backgroundColor:['#ff7b7b','#7db8ff','#7ee4b7','#ffd27a','#bda1ff','#9be7ff','#ffc9de']}]},options:{plugins:{legend:{position:'bottom'}},maintainAspectRatio:false}});
+  barChart=new Chart($('barChart').getContext('2d'),{type:'bar',data:{labels:['Week 1','Week 2','Week 3','Week 4','Week 5'],datasets:[{label:'Expense',data:weeks,backgroundColor:'#4f46e5'}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}},maintainAspectRatio:false}});
 }
 
 // boot

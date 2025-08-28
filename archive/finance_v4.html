@@ -56,7 +56,7 @@
     </div>
 
     <div class="d-flex gap-2">
-      <a href="yearly.html" class="btn btn-outline-primary btn-sm">Yearly Summary</a>
+      <a href="../yearly.html" class="btn btn-outline-primary btn-sm">Yearly Summary</a>
       <button id="toggleChartsBtn" class="btn btn-dark btn-sm">Hide Charts</button>
       <button id="exportBtn" class="btn btn-success btn-sm">Export to Excel</button>
       <button id="darkToggleBtn" class="btn btn-outline-secondary btn-sm">🌙 Dark</button>
@@ -219,7 +219,7 @@ let pieChart = null, barChart = null;
 async function checkSession() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) {
-    window.location.href = "login.html";
+    window.location.href = "../login.html";
     return;
   }
   user = session.user;
@@ -522,6 +522,33 @@ function renderCalendar(tx){
     right.innerHTML=`<span class="income">+₹${inc}</span> <span class="expense">-₹${exp}</span>`;
     header.appendChild(left); header.appendChild(right); cell.appendChild(header);
     $('calendar').appendChild(cell);
+
+    // TOP 3 EXPENSE CATEGORIES (added)
+    const byCatId = {};
+    todays.forEach(t => {
+      if (t.type === 'expense') {
+        const cid = String(t.category_id);
+        byCatId[cid] = (byCatId[cid] || 0) + Number(t.amount || 0);
+      }
+    });
+
+    const topLines = Object.entries(byCatId)
+      .map(([cid, total]) => {
+        const name = catIdToName?.[cid] || 'Uncategorized';
+        return [name, total];
+      })
+      .sort((a,b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([name, total]) => `• ${name}: ₹${total}`);
+
+    if (topLines.length) {
+      const list = document.createElement('div'); 
+      list.className = 'cat-list';
+      list.innerHTML = topLines.join('<br>');
+      cell.appendChild(list);
+    }
+
+    $('calendar').appendChild(cell);
   }
 }
 
@@ -541,6 +568,46 @@ function renderTable(tx){
     };
   });
 }
+
+
+document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+  try {
+
+    // Check if Supabase client is available and session exists
+    if (checkSession()) {
+      const { data, error } = await supabaseClient.auth.getSession();
+      if (error) {
+        console.warn('Supabase session check error:', error.message);
+      }
+      const session = data?.session || null;
+
+      if (session) {
+        // Terminate Supabase session
+        const { error: signOutError } = await supabaseClient.auth.signOut();
+        if (signOutError) {
+          console.error('Supabase sign-out failed:', signOutError.message);
+          alert('Could not log out from Supabase. Please try again.');
+          return;
+        }
+        // Optional: clear any local app state
+        // localStorage.removeItem('finance_tracker_v_final');
+
+        alert('Logged out from Supabase session.');
+        // Navigate to login page
+        window.location.href = '../login.html';
+        return;
+      }
+    }
+
+    // If no Supabase or no session, treat as local session
+    alert('Local session detected (no Supabase auth).');
+    // Temporary: navigate to login page
+    //window.location.href = '../login.html';
+  } catch (e) {
+    console.error('Logout handler error:', e);
+    alert('Unexpected error during logout.');
+  }
+});
 
 function renderCharts(tx){
   const catTotals={};
