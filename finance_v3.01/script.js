@@ -217,25 +217,70 @@ document.querySelector('button[data-bs-target="#budgetCollapse"]').addEventListe
   createBudgetViews(mk);
 });
 
-// Save budgets
-$('saveBudgets').addEventListener('click', () => {
-  const mk = keyFor(viewDate); ensureMonth(mk);
-  const useManual = $('budgetModeToggle').checked;
-  const selector = useManual
-    ? '#budgetInputsContainer .manual-input'
-    : '#budgetSlidersContainer .slider-input';
-
-  const newB = { ...store[mk].budgets };
-  document.querySelectorAll(selector).forEach(el => {
-    const cat = el.dataset.cat; const amt = Number(el.value);
-    if (amt > 0) newB[cat] = amt; else delete newB[cat];
-  });
-
-  store[mk].budgets = newB;
-  saveStore();
-  bootstrap.Collapse.getOrCreateInstance($('budgetCollapse')).hide();
-  renderAll();
+// ========== Save Budgets DB Integration ========== 
+$('saveBudgets').addEventListener('click', async () => {
+  try {
+    const mk = keyFor(viewDate); ensureMonth(mk);
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+    if (sessionError || !session?.user) { alert('Please log in to save budgets'); return; }
+    const userId = session.user.id;
+    const useManual = $('budgetModeToggle').checked;
+    const selector = useManual ? '#budgetInputsContainer .manual-input' : '#budgetSlidersContainer .slider-input';
+    const budgetEntries = [];
+    const newB = { ...store[mk].budgets };
+    document.querySelectorAll(selector).forEach(el => {
+      const categoryName = el.dataset.cat;
+      const amount = Number(el.value);
+      if (amount > 0) {
+        newB[categoryName] = amount;
+        const categoryId = expenseNameToId[categoryName];
+        if (categoryId) {
+          budgetEntries.push({ user_id: userId, year_month: mk, category_id: categoryId, amount });
+        }
+      } else { delete newB[categoryName]; }
+    });
+    const { error: deleteError } = await supabaseClient.from('budgets').delete().eq('user_id', userId).eq('year_month', mk);
+    if (deleteError) { console.error('Error deleting existing budgets:', deleteError); throw deleteError; }
+    if (budgetEntries.length > 0) {
+      const { error: insertError } = await supabaseClient.from('budgets').insert(budgetEntries);
+      if (insertError) { console.error('Error inserting budgets:', insertError); throw insertError; }
+    }
+    store[mk].budgets = newB;
+    saveStore();
+    bootstrap.Collapse.getOrCreateInstance($('budgetCollapse')).hide();
+    await renderAll();
+  } catch (error) {
+    console.error('Error saving budgets:', error);
+    alert('Failed to save budgets. Please try again.');
+  }
 });
+
+// Call renderAll when page is ready
+window.addEventListener('DOMContentLoaded', renderAll);
+
+
+// ========== DB-Integrated Budget Load ========== 
+async function loadBudgetsFromDB(monthKey) {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session?.user) return;
+  const { data, error } = await supabaseClient
+    .from('budgets')
+    .select('category_id,amount,categories(name)')
+    .eq('user_id', session.user.id)
+    .eq('year_month', monthKey);
+  if (error) { console.error('Error loading budgets:', error); return; }
+  const budgets = {};
+  (data || []).forEach(budget => {
+    const categoryName = budget.categories.name;
+    budgets[categoryName] = budget.amount;
+  });
+  ensureMonth(monthKey);
+  store[monthKey].budgets = budgets;
+  saveStore();
+}
+
+
+
 
 // ========== Navigation & Export ==========
 $('prevMonthBtn').addEventListener('click', () => { viewDate.setMonth(viewDate.getMonth()-1); renderAll(); });
@@ -367,12 +412,16 @@ $('exportBtn').addEventListener('click', () => {
 });
 
 // ========== Rendering ==========
-function renderAll() {
+async function renderAll() {
   const k = keyFor(viewDate); ensureMonth(k);
   $('monthLabel').textContent =
     `${monthNames[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
+
+  await loadCategories();
+  await loadBudgetsFromDB(keyFor(viewDate));
+
   renderSummary();
-  renderBudgetProgress();
+  await renderBudgetProgress();
   renderCalendar();
   renderTable();
   renderCharts();
@@ -390,12 +439,19 @@ function renderSummary() {
   $('sumBalance').textContent = `₹${(m.startingBalance||0)+inc-exp}`;
 }
 
-function renderBudgetProgress(){
-  const k = keyFor(viewDate); ensureMonth(k);
+async function renderBudgetProgress(){
+  const k = keyFor(viewDate); 
+  ensureMonth(k);
+  
+  // **ADD THIS LINE** - Load budgets from database first
+  await loadBudgetsFromDB(k);
+  
   const month = store[k];
   const budgets = month.budgets || {};
   const spent = {};
-  (month.transactions || []).filter(t=>t.type==='expense').forEach(t => { spent[t.category] = (spent[t.category]||0) + t.amount; });
+  (month.transactions || []).filter(t=>t.type==='expense').forEach(t => { 
+    spent[t.category] = (spent[t.category]||0) + t.amount; 
+  });
 
   const cats = Object.keys(budgets);
   if(cats.length===0){
@@ -408,11 +464,10 @@ function renderBudgetProgress(){
     const limit = budgets[cat] || 0;
     if(limit <= 0) return;
 
-    const used = Math.round((spent[cat] || 0) * 100) / 100;            // spent amount (rounded)
-    const pctRaw = (used / limit) * 100;                               // raw percent (can be >100)
-    const pctForBar = Math.max(0, Math.min(100, Math.round(pctRaw)));  // capped to 0..100 for bar width
+    const used = Math.round((spent[cat] || 0) * 100) / 100;
+    const pctRaw = (used / limit) * 100;
+    const pctForBar = Math.max(0, Math.min(100, Math.round(pctRaw)));
 
-    // Decide color based on raw percent (so overspend hits danger)
     const color = pctRaw < 80 ? 'bg-success' : (pctRaw <= 100 ? 'bg-warning' : 'bg-danger');
 
     html += `
@@ -424,6 +479,7 @@ function renderBudgetProgress(){
 
   $('budgetProgress').innerHTML = html || '<div class="text-muted small">No budgets set for this month.</div>';
 }
+
 
 function renderCalendar(){
   const k = keyFor(viewDate); ensureMonth(k);
