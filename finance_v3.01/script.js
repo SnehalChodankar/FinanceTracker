@@ -8,8 +8,15 @@ const monthNames = [
   'January','February','March','April','May','June',
   'July','August','September','October','November','December'
 ];
-const categoriesExpense = ['Food','Travel','Bills','Shopping','Entertainment'];
-const categoriesIncome = ['Salary','Freelance','Bonus','Interest','Other'];
+let categoriesExpense = ['Food','Travel','Bills','Shopping','Entertainment'];
+let categoriesIncome = ['Salary','Freelance','Bonus','Interest','Other'];
+
+// category caches (for fast name<->id lookup)
+let catIdToName = {};           // { id: 'Food' }
+let expenseNameToId = {};       // { 'Food': 123 }
+let incomeNameToId  = {};       // { 'Salary': 456 }
+let expenseList = [];          // [{id,name}, ...]
+let incomeList = [];           // [{id,name}, ...]
 
 const $ = id => document.getElementById(id);
 const ensureMonth = k => { if (!store[k]) store[k] = { startingBalance: 0, budgets: {}, transactions: [] }; };
@@ -30,6 +37,71 @@ function setDefaultDates(){
   $('expenseDate').value = today;
 }
 setDefaultDates();
+
+// Load all categories for this user into caches
+async function loadCategories() {
+  const { data, error } = await supabaseClient
+    .from('categories')
+    .select('id,name,type')
+    .order('id');
+
+  if (error) {
+    console.error("loadCategories error:", error);
+    return;
+  }
+
+  catIdToName = {};
+  expenseNameToId = {};
+  incomeNameToId = {};
+  expenseList = [];
+  incomeList = [];
+
+  categoriesExpense=[];
+  categoriesIncome=[];
+
+  for (const row of (data || [])) {
+    const idKey = String(row.id);
+    catIdToName[idKey] = row.name;
+    if (row.type === 'expense') {
+      expenseNameToId[row.name] = row.id;
+      expenseList.push({ id: row.id, name: row.name });
+      categoriesExpense.push(row.name);
+    }
+    if (row.type === 'income')  {
+      incomeNameToId[row.name]  = row.id;
+      incomeList.push({ id: row.id, name: row.name });
+      categoriesIncome.push(row.name );
+    }
+  }
+
+  console.log("Categories loaded:", catIdToName);
+}
+
+function populateCategories(){
+  // Populate income/expense selects from DB if available, otherwise fallback to static list
+  const incomeSel = $('incomeCategory');
+  const expenseSel = $('expenseCategory');
+
+  if(incomeSel){
+    if(incomeList.length>0){
+      incomeSel.innerHTML = incomeList.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+    } else {
+      incomeSel.innerHTML = categoriesIncome.map(c=>`<option>${c}</option>`).join('');
+    }
+  }
+
+  if(expenseSel){
+    if(expenseList.length>0){
+      expenseSel.innerHTML = expenseList.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+    } else {
+      expenseSel.innerHTML = categoriesExpense.map(c=>`<option>${c}</option>`).join('');
+    }
+  }
+
+  // Also populate budget inputs if you have a budgetInputs container with inputs having data-cat
+  // If budget inputs are generated dynamically somewhere else, keep that logic; otherwise we keep existing markup.
+}
+
 
 // populate income/expense selects (ensures consistent categories)
 const incomeSel = $('incomeCategory'), expenseSel = $('expenseCategory');
@@ -217,6 +289,24 @@ async function checkSession() {
     }
     return 0;
   }
+
+  /* ========= Auth ========= */
+  async function checkSessionForRedirect() {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session) {
+    window.location.href = "../login.html";
+    return;
+  }
+  user = session.user;
+  setDefaultDates();
+
+  // Load categories from DB (pre-seeded). Must load before populating selects / rendering.
+  await loadCategories();
+
+  populateCategories();
+  await renderAll();
+}
+  checkSessionForRedirect();
 
 
 document.getElementById('logoutBtn')?.addEventListener('click', async () => {

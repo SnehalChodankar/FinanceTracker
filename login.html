@@ -100,7 +100,7 @@
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
       // Already logged in → redirect
-      window.location.href = "index.html";
+      window.location.href = "./finance_v3.01/index.html";
     }
   }
   checkSession();
