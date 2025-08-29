@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en" data-bs-theme="light">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -11,6 +12,7 @@
   <!-- Custom CSS -->
   <link rel="stylesheet" href="./assets/css/style.css" />
 </head>
+
 <body>
   <div class="container py-4">
     <!-- Header -->
@@ -27,11 +29,11 @@
       </div>
 
       <div class="d-flex gap-2">
-        <a href="yearly.html" class="btn btn-primary btn-sm">Yearly Summary</a>
-        <button id="toggleChartsBtn" class="btn btn-dark btn-sm">Hide Charts</button>
-        <button id="exportBtn" class="btn btn-success btn-sm">Export to Excel</button>
+        <a href="yearly.html" class="btn btn-primary btn-sm">📆 Yearly Summary</a>
+        <button id="toggleChartsBtn" class="btn btn-dark btn-sm">📈 Hide Charts</button>
+        <button id="exportBtn" class="btn btn-success btn-sm">📄 Export</button>
         <button id="darkToggleBtn" class="btn btn-secondary btn-sm">🌙 Dark</button>
-        <button id="logoutBtn" class="btn btn-danger btn-sm">Logout</button>
+        <button id="logoutBtn" class="btn btn-danger btn-sm">⚡Logout</button>
       </div>
     </div>
 
@@ -121,11 +123,7 @@
         <form id="budgetForm" class="row g-2">
           <div class="col-12">
             <div class="form-check form-switch mb-2">
-              <input
-                class="form-check-input"
-                type="checkbox"
-                id="budgetModeToggle"
-              />
+              <input class="form-check-input" type="checkbox" id="budgetModeToggle" />
               <label class="form-check-label small" for="budgetModeToggle">
                 Use Manual Inputs
               </label>
@@ -139,13 +137,8 @@
             <button type="button" id="saveBudgets" class="btn btn-info btn-sm">
               Save All Budgets
             </button>
-            <button
-              type="button"
-              id="cancelBudget"
-              class="btn btn-secondary btn-sm"
-              data-bs-toggle="collapse"
-              data-bs-target="#budgetCollapse"
-            >
+            <button type="button" id="cancelBudget" class="btn btn-secondary btn-sm" data-bs-toggle="collapse"
+              data-bs-target="#budgetCollapse">
               Cancel
             </button>
           </div>
@@ -156,54 +149,95 @@
     <!-- Summary, Progress, Calendar, Charts, Transactions… -->
     <!-- (unchanged) -->
 
-<!-- Summary -->
-  <div class="row g-3 mb-4">
-    <div class="col-md-4"><div class="card p-3 card-compact"><div class="small text-muted">Starting Balance</div><div id="startBal" class="h4">₹0</div></div></div>
-    <div class="col-md-4"><div class="card p-3 card-compact"><div class="small text-muted">Total Income</div><div id="sumIncome" class="h4">₹0</div></div></div>
-    <div class="col-md-4"><div class="card p-3 card-compact"><div class="small text-muted">Total Expense · Balance</div><div class="h5"><span id="sumExpense">₹0</span> · <span id="sumBalance">₹0</span></div></div></div>
-  </div>
-
-  <!-- Budget progress -->
-  <div class="card p-3 mb-4 card-compact">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <div class="small text-muted">Budget Progress</div>
-      <div class="small text-muted">green <80% • amber 80–100% • red >100%</div>
+    <!-- Summary -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="card p-3 card-compact">
+          <div class="small text-muted">Starting Balance</div>
+          <div id="startBal" class="h4">₹0</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card p-3 card-compact">
+          <div class="small text-muted">Total Income</div>
+          <div id="sumIncome" class="h4">₹0</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card p-3 card-compact">
+          <div class="small text-muted">Total Expense · Balance</div>
+          <div class="h5"><span id="sumExpense">₹0</span> · <span id="sumBalance">₹0</span></div>
+        </div>
+      </div>
     </div>
-    <div id="budgetProgress"></div>
-  </div>
 
-  <!-- Calendar -->
-  <div class="card p-3 mb-4 card-compact">
-    <div class="calendar-grid text-center text-muted small mb-2"><div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div></div>
-    <div id="calendar" class="calendar-grid"></div>
-  </div>
-
-  <!-- Charts -->
-  <div class="row g-3 mb-4" id="chartsRow">
-    <div class="col-md-6"><div class="card p-3 card-compact text-center"><div class="small text-muted mb-2">Expense by Category</div><canvas id="pieChart" class="chart-canvas"></canvas></div></div>
-    <div class="col-md-6"><div class="card p-3 card-compact text-center"><div class="small text-muted mb-2">Weekly Expense</div><canvas id="barChart" class="chart-canvas"></canvas></div></div>
-  </div>
-
-  <!-- Transactions -->
-  <div class="card p-3 card-compact">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <div class="small text-muted">Transactions (current month)</div>
-      <div class="small text-muted">Click delete to remove</div>
+    <!-- Budget progress -->
+    <div class="card p-3 mb-4 card-compact">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="small text-muted">Budget Progress</div>
+        <div class="small text-muted">green <80% • amber 80–100% • red>100%</div>
+      </div>
+      <div id="budgetProgress"></div>
     </div>
-    <div class="table-responsive">
-      <table class="table table-sm align-middle">
-        <thead class="table-light small"><tr><th>Date</th><th>Type</th><th>Category</th><th class="text-end">Amount</th><th>Note</th><th></th></tr></thead>
-        <tbody id="txBody"></tbody>
-      </table>
+
+    <!-- Calendar -->
+    <div class="card p-3 mb-4 card-compact">
+      <div class="calendar-grid text-center text-muted small mb-2">
+        <div>Sun</div>
+        <div>Mon</div>
+        <div>Tue</div>
+        <div>Wed</div>
+        <div>Thu</div>
+        <div>Fri</div>
+        <div>Sat</div>
+      </div>
+      <div id="calendar" class="calendar-grid"></div>
     </div>
-  </div>
+
+    <!-- Charts -->
+    <div class="row g-3 mb-4" id="chartsRow">
+      <div class="col-md-6">
+        <div class="card p-3 card-compact text-center">
+          <div class="small text-muted mb-2">Expense by Category</div><canvas id="pieChart"
+            class="chart-canvas"></canvas>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card p-3 card-compact text-center">
+          <div class="small text-muted mb-2">Weekly Expense</div><canvas id="barChart" class="chart-canvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transactions -->
+    <div class="card p-3 card-compact">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="small text-muted">Transactions (current month)</div>
+        <div class="small text-muted">Click delete to remove</div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead class="table-light small">
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Category</th>
+              <th class="text-end">Amount</th>
+              <th>Note</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="txBody"></tbody>
+        </table>
+      </div>
+    </div>
 
 
   </div>
 
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  
+
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
@@ -213,8 +247,9 @@
   <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  
+
   <!-- Custom JS -->
   <script src="./assets/js/script.js"></script>
 </body>
+
 </html>

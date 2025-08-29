@@ -5,34 +5,34 @@ let viewDate = new Date();
 viewDate.setDate(1);
 
 const monthNames = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December'
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
 ];
-let categoriesExpense = ['Food','Travel','Bills','Shopping','Entertainment'];
-let categoriesIncome = ['Salary','Freelance','Bonus','Interest','Other'];
+let categoriesExpense = ['Food', 'Travel', 'Bills', 'Shopping', 'Entertainment'];
+let categoriesIncome = ['Salary', 'Freelance', 'Bonus', 'Interest', 'Other'];
 
 // category caches (for fast name<->id lookup)
 let catIdToName = {};           // { id: 'Food' }
 let expenseNameToId = {};       // { 'Food': 123 }
-let incomeNameToId  = {};       // { 'Salary': 456 }
+let incomeNameToId = {};       // { 'Salary': 456 }
 let expenseList = [];          // [{id,name}, ...]
 let incomeList = [];           // [{id,name}, ...]
 
 const $ = id => document.getElementById(id);
 const ensureMonth = k => { if (!store[k]) store[k] = { startingBalance: 0, budgets: {}, transactions: [] }; };
 const saveStore = () => localStorage.setItem(LS_KEY, JSON.stringify(store));
-const keyFor = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+const keyFor = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
 // Chart instances
 let pieChart = null, barChart = null;
 
 var today = new Date;
-    document.getElementById('titleDate').innerHTML= today.toDateString();
+document.getElementById('titleDate').innerHTML = today.toDateString();
 
 // Set default date inputs
 // Initialize date inputs to today
-function setDefaultDates(){
-  const today = new Date().toISOString().slice(0,10);
+function setDefaultDates() {
+  const today = new Date().toISOString().slice(0, 10);
   $('incomeDate').value = today;
   $('expenseDate').value = today;
 }
@@ -56,8 +56,8 @@ async function loadCategories() {
   expenseList = [];
   incomeList = [];
 
-  categoriesExpense=[];
-  categoriesIncome=[];
+  categoriesExpense = [];
+  categoriesIncome = [];
 
   for (const row of (data || [])) {
     const idKey = String(row.id);
@@ -67,34 +67,34 @@ async function loadCategories() {
       expenseList.push({ id: row.id, name: row.name });
       categoriesExpense.push(row.name);
     }
-    if (row.type === 'income')  {
-      incomeNameToId[row.name]  = row.id;
+    if (row.type === 'income') {
+      incomeNameToId[row.name] = row.id;
       incomeList.push({ id: row.id, name: row.name });
-      categoriesIncome.push(row.name );
+      categoriesIncome.push(row.name);
     }
   }
 
   console.log("Categories loaded:", catIdToName);
 }
 
-function populateCategories(){
+function populateCategories() {
   // Populate income/expense selects from DB if available, otherwise fallback to static list
   const incomeSel = $('incomeCategory');
   const expenseSel = $('expenseCategory');
 
-  if(incomeSel){
-    if(incomeList.length>0){
-      incomeSel.innerHTML = incomeList.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  if (incomeSel) {
+    if (incomeList.length > 0) {
+      incomeSel.innerHTML = incomeList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
     } else {
-      incomeSel.innerHTML = categoriesIncome.map(c=>`<option>${c}</option>`).join('');
+      incomeSel.innerHTML = categoriesIncome.map(c => `<option>${c}</option>`).join('');
     }
   }
 
-  if(expenseSel){
-    if(expenseList.length>0){
-      expenseSel.innerHTML = expenseList.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  if (expenseSel) {
+    if (expenseList.length > 0) {
+      expenseSel.innerHTML = expenseList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
     } else {
-      expenseSel.innerHTML = categoriesExpense.map(c=>`<option>${c}</option>`).join('');
+      expenseSel.innerHTML = categoriesExpense.map(c => `<option>${c}</option>`).join('');
     }
   }
 
@@ -105,71 +105,101 @@ function populateCategories(){
 
 // populate income/expense selects (ensures consistent categories)
 const incomeSel = $('incomeCategory'), expenseSel = $('expenseCategory');
-incomeSel.innerHTML = categoriesIncome.map(c=>`<option>${c}</option>`).join('');
-expenseSel.innerHTML = categoriesExpense.map(c=>`<option>${c}</option>`).join('');
+incomeSel.innerHTML = categoriesIncome.map(c => `<option>${c}</option>`).join('');
+expenseSel.innerHTML = categoriesExpense.map(c => `<option>${c}</option>`).join('');
 
 // hook up collapses to auto-hide others
-const collapses = ['incomeCollapse','expenseCollapse','startCollapse','budgetCollapse'].map(id=>document.getElementById(id));
-collapses.forEach(c=>{
-  c.addEventListener('show.bs.collapse', ()=> collapses.forEach(x=>{ if(x!==c) bootstrap.Collapse.getOrCreateInstance(x).hide(); }) );
+//const collapses = ['incomeCollapse', 'expenseCollapse', 'startCollapse', 'budgetCollapse'].map(id => document.getElementById(id));
+//collapses.forEach(c => {
+//  c.addEventListener('show.bs.collapse', () => collapses.forEach(x => { if (x !== c) bootstrap.Collapse.getOrCreateInstance(x).hide(); }));
+//});
+
+
+document.addEventListener('DOMContentLoaded', () => {
+  const ids = ['incomeCollapse','expenseCollapse','startCollapse','budgetCollapse'];
+  const els = ids.map(id => document.getElementById(id)).filter(Boolean);
+
+  // Pre-init with toggle:false so nothing auto-opens
+  els.forEach(el => {
+    if (!bootstrap.Collapse.getInstance(el)) {
+      new bootstrap.Collapse(el, { toggle: false });
+    }
+  });
+
+  // On show, hide the others
+  els.forEach(curr => {
+    curr.addEventListener('show.bs.collapse', () => {
+      els.forEach(other => {
+        if (other !== curr) {
+          const inst = bootstrap.Collapse.getInstance(other);
+          if (inst) inst.hide();
+        }
+      });
+    });
+  });
+
+  // Ensure all are closed initially after reload
+  els.forEach(el => bootstrap.Collapse.getInstance(el)?.hide());
 });
+
+
 
 // ========== Forms Handling ==========
 /* ========= Forms ========= */
-$('incomeForm')?.addEventListener('submit', async e=>{
+$('incomeForm')?.addEventListener('submit', async e => {
   e.preventDefault();
   const date = $('incomeDate').value;
   const selected = $('incomeCategory').value;
   // Determine category_id: prefer option value as id (when categories loaded), otherwise try mapping by name
   let category_id = null;
-  if(incomeList.length>0){
+  if (incomeList.length > 0) {
     category_id = selected; // value is id
   } else {
     category_id = incomeNameToId[selected] || null;
   }
   const amount = parseFloat($('incomeAmount').value) || 0;
   const note = $('incomeNote').value.trim();
-  if(amount>0){
+  if (amount > 0) {
     const { error } = await supabaseClient.from('transactions').insert([
-      { user_id: user.id, date, type:'income', amount, notes: note, category_id: category_id }
+      { user_id: user.id, date, type: 'income', amount, notes: note, category_id: category_id }
     ]);
-    if(error){ console.error("Insert income failed:", error); alert(error.message); }
+    if (error) { console.error("Insert income failed:", error); alert(error.message); }
   }
   bootstrap.Collapse.getOrCreateInstance(document.getElementById('incomeCollapse')).hide();
   e.target.reset(); setDefaultDates(); await renderAll();
 });
 
-$('expenseForm')?.addEventListener('submit', async e=>{
+$('expenseForm')?.addEventListener('submit', async e => {
   e.preventDefault();
   const date = $('expenseDate').value;
   const selected = $('expenseCategory').value;
   let category_id = null;
-  if(expenseList.length>0){
+  if (expenseList.length > 0) {
     category_id = selected;
   } else {
     category_id = expenseNameToId[selected] || null;
   }
   const amount = parseFloat($('expenseAmount').value) || 0;
   const note = $('expenseNote').value.trim();
-  if(amount>0){
+  if (amount > 0) {
     const { error } = await supabaseClient.from('transactions').insert([
-      { user_id: user.id, date, type:'expense', amount, notes: note, category_id: category_id }
+      { user_id: user.id, date, type: 'expense', amount, notes: note, category_id: category_id }
     ]);
-    if(error){ console.error("Insert expense failed:", error); alert(error.message); }
+    if (error) { console.error("Insert expense failed:", error); alert(error.message); }
   }
   bootstrap.Collapse.getOrCreateInstance(document.getElementById('expenseCollapse')).hide();
   e.target.reset(); setDefaultDates(); await renderAll();
 });
 
-$('startForm')?.addEventListener('submit', async e=>{
+$('startForm')?.addEventListener('submit', async e => {
   e.preventDefault();
   const amount = parseFloat($('startAmount').value) || 0;
-  const y=viewDate.getFullYear(), m=viewDate.getMonth()+1;
+  const y = viewDate.getFullYear(), m = viewDate.getMonth() + 1;
   const { error } = await supabaseClient.from('balances').upsert(
-    [{ user_id:user.id, year:y, month:m, starting_balance: amount }],
+    [{ user_id: user.id, year: y, month: m, starting_balance: amount }],
     { onConflict: 'user_id,year,month' }
   );
-  if(error){ console.error("Balance upsert failed:", error); alert(error.message); }
+  if (error) { console.error("Balance upsert failed:", error); alert(error.message); }
   bootstrap.Collapse.getOrCreateInstance(document.getElementById('startCollapse')).hide();
   e.target.reset(); await renderAll();
 });
@@ -181,9 +211,9 @@ function getStartingBalanceFor(monthKey) {
 
 function createBudgetViews(monthKey) {
   const sliderCont = $('budgetSlidersContainer');
-  const inputCont  = $('budgetInputsContainer');
+  const inputCont = $('budgetInputsContainer');
   sliderCont.innerHTML = '';
-  inputCont.innerHTML  = '';
+  inputCont.innerHTML = '';
   const maxAmt = getStartingBalanceFor(monthKey);
 
   // Build sliders & manual inputs
@@ -309,35 +339,35 @@ async function loadBudgetsFromDB(monthKey) {
 
 
 // ========== Navigation & Export ==========
-$('prevMonthBtn').addEventListener('click', () => { viewDate.setMonth(viewDate.getMonth()-1); renderAll(); });
-$('nextMonthBtn').addEventListener('click', () => { viewDate.setMonth(viewDate.getMonth()+1); renderAll(); });
+$('prevMonthBtn').addEventListener('click', () => { viewDate.setMonth(viewDate.getMonth() - 1); renderAll(); });
+$('nextMonthBtn').addEventListener('click', () => { viewDate.setMonth(viewDate.getMonth() + 1); renderAll(); });
 
 // Hide/Show charts
-$('toggleChartsBtn').addEventListener('click', ()=>{
+$('toggleChartsBtn').addEventListener('click', () => {
   const el = $('chartsRow'); el.classList.toggle('d-none');
   $('toggleChartsBtn').textContent = el.classList.contains('d-none') ? 'Show Charts' : 'Hide Charts';
 });
 
-(function restoreTheme(){
+(function restoreTheme() {
   const t = localStorage.getItem('ft_theme');
-  if (t==='dark') {
-    document.documentElement.setAttribute('data-bs-theme','dark');
-    $('darkToggleBtn').textContent='☀️ Light';
+  if (t === 'dark') {
+    document.documentElement.setAttribute('data-bs-theme', 'dark');
+    $('darkToggleBtn').textContent = '☀️ Light';
   } else {
-    document.documentElement.setAttribute('data-bs-theme','light');
-    $('darkToggleBtn').textContent='🌙 Dark';
+    document.documentElement.setAttribute('data-bs-theme', 'light');
+    $('darkToggleBtn').textContent = '🌙 Dark';
   }
 })();
 $('darkToggleBtn').addEventListener('click', () => {
   const cur = document.documentElement.getAttribute('data-bs-theme');
-  if (cur==='dark') {
-    document.documentElement.setAttribute('data-bs-theme','light');
-    localStorage.setItem('ft_theme','light');
-    $('darkToggleBtn').textContent='🌙 Dark';
+  if (cur === 'dark') {
+    document.documentElement.setAttribute('data-bs-theme', 'light');
+    localStorage.setItem('ft_theme', 'light');
+    $('darkToggleBtn').textContent = '🌙 Dark';
   } else {
-    document.documentElement.setAttribute('data-bs-theme','dark');
-    localStorage.setItem('ft_theme','dark');
-    $('darkToggleBtn').textContent='☀️ Light';
+    document.documentElement.setAttribute('data-bs-theme', 'dark');
+    localStorage.setItem('ft_theme', 'dark');
+    $('darkToggleBtn').textContent = '☀️ Light';
   }
 });
 
@@ -352,17 +382,17 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // const supabase = window.supabase?.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 async function checkSession() {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) {
-      // Already logged in → redirect
-      //window.location.href = "../../index.html";
-      return 1;
-    }
-    return 0;
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (session) {
+    // Already logged in → redirect
+    //window.location.href = "../../index.html";
+    return 1;
   }
+  return 0;
+}
 
-  /* ========= Auth ========= */
-  async function checkSessionForRedirect() {
+/* ========= Auth ========= */
+async function checkSessionForRedirect() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) {
     window.location.href = "login.html";
@@ -377,7 +407,7 @@ async function checkSession() {
   populateCategories();
   await renderAll();
 }
-  checkSessionForRedirect();
+checkSessionForRedirect();
 
 
 document.getElementById('logoutBtn')?.addEventListener('click', async () => {
@@ -423,13 +453,15 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
 
 $('exportBtn').addEventListener('click', () => {
   const k = keyFor(viewDate); ensureMonth(k);
-  let run = store[k].startingBalance||0;
+  let run = store[k].startingBalance || 0;
   const rows = store[k].transactions
-    .slice().sort((a,b)=>a.date.localeCompare(b.date))
+    .slice().sort((a, b) => a.date.localeCompare(b.date))
     .map(t => {
-      run += t.type==='income'?t.amount:-t.amount;
-      return { Date:t.date, Type:t.type, Category:t.category,
-               Amount:t.amount, Note:t.note||'', Balance:run };
+      run += t.type === 'income' ? t.amount : -t.amount;
+      return {
+        Date: t.date, Type: t.type, Category: t.category,
+        Amount: t.amount, Note: t.note || '', Balance: run
+      };
     });
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
@@ -460,65 +492,65 @@ async function renderSummary() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   const user = session.user;
 
-  const { data:tx=[] } = await supabaseClient.from('transactions')
-  .select('id,date,type,amount,notes,category_id')
-  .eq('user_id',user.id)
-  .gte('date',`${ym}-01`).lte('date',`${ym}-31`);
+  const { data: tx = [] } = await supabaseClient.from('transactions')
+    .select('id,date,type,amount,notes,category_id')
+    .eq('user_id', user.id)
+    .gte('date', `${ym}-01`).lte('date', `${ym}-31`);
 
-    const { data:bal } = await supabaseClient.from('balances').select('*')
-  .eq('user_id',user.id)
-  .eq('year',viewDate.getFullYear())
-  .eq('month',viewDate.getMonth()+1)
-  .maybeSingle();
+  const { data: bal } = await supabaseClient.from('balances').select('*')
+    .eq('user_id', user.id)
+    .eq('year', viewDate.getFullYear())
+    .eq('month', viewDate.getMonth() + 1)
+    .maybeSingle();
 
-  const inc=tx.filter(t=>t.type==='income').reduce((s,t)=>s+Number(t.amount),0);
-  const exp=tx.filter(t=>t.type==='expense').reduce((s,t)=>s+Number(t.amount),0);
-  $('startBal').textContent=`₹${bal?.starting_balance||0}`;
-  $('sumIncome').textContent=`₹${inc}`;
-  $('sumExpense').textContent=`₹${exp}`;
-  $('sumBalance').textContent=`₹${(bal?.starting_balance||0)+inc-exp}`;
+  const inc = tx.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+  const exp = tx.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+  $('startBal').textContent = `₹${bal?.starting_balance || 0}`;
+  $('sumIncome').textContent = `₹${inc}`;
+  $('sumExpense').textContent = `₹${exp}`;
+  $('sumBalance').textContent = `₹${(bal?.starting_balance || 0) + inc - exp}`;
 }
 
 
-async function renderBudgetProgress(){
+async function renderBudgetProgress() {
   const ym = keyFor(viewDate);
   const { data: { session } } = await supabaseClient.auth.getSession();
-  
+
   const user = session.user;
 
-    const { data:bud=[] } = await supabaseClient.from('budgets')
+  const { data: bud = [] } = await supabaseClient.from('budgets')
     .select('id,amount,category_id')
-    .eq('user_id',user.id)
-    .eq('year_month',ym);
+    .eq('user_id', user.id)
+    .eq('year_month', ym);
 
 
-  const { data:tx=[] } = await supabaseClient.from('transactions')
-  .select('id,date,type,amount,notes,category_id')
-  .eq('user_id',user.id)
-  .gte('date',`${ym}-01`).lte('date',`${ym}-31`);
+  const { data: tx = [] } = await supabaseClient.from('transactions')
+    .select('id,date,type,amount,notes,category_id')
+    .eq('user_id', user.id)
+    .gte('date', `${ym}-01`).lte('date', `${ym}-31`);
 
   // spent per category id
   const spentById = {};
-  tx.filter(t=>t.type==='expense').forEach(t=>{
+  tx.filter(t => t.type === 'expense').forEach(t => {
     const cid = String(t.category_id);
     spentById[cid] = (spentById[cid] || 0) + Number(t.amount);
   });
 
-  if(!bud.length){
+  if (!bud.length) {
     $('budgetProgress').innerHTML = '<div class="text-muted small">No budgets set for this month.</div>';
     return;
   }
 
   let html = '';
-  bud.forEach(b=>{
+  bud.forEach(b => {
     const cid = String(b.category_id);
     const name = catIdToName[cid] || 'Other';
     const limit = +b.amount || 0;
     if (limit <= 0) return;
     const used = Math.round((spentById[cid] || 0) * 100) / 100;
-    const pctRaw   = (used / limit) * 100;
-    const pctForBar= Math.max(0, Math.min(100, Math.round(pctRaw)));
-    const color    = pctRaw < 80 ? 'bg-success' : (pctRaw <= 100 ? 'bg-warning' : 'bg-danger');
+    const pctRaw = (used / limit) * 100;
+    const pctForBar = Math.max(0, Math.min(100, Math.round(pctRaw)));
+    const color = pctRaw < 80 ? 'bg-success' : (pctRaw <= 100 ? 'bg-warning' : 'bg-danger');
 
     html += `
       <div class="mb-2">
@@ -531,34 +563,34 @@ async function renderBudgetProgress(){
 }
 
 
-async function renderCalendar(){
+async function renderCalendar() {
   const ym = keyFor(viewDate);
   $('monthLabel').textContent = `${monthNames[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
 
   const { data: { session } } = await supabaseClient.auth.getSession();
   const user = session.user;
 
-  const { data:tx=[] } = await supabaseClient.from('transactions')
-  .select('id,date,type,amount,notes,category_id')
-  .eq('user_id',user.id)
-  .gte('date',`${ym}-01`).lte('date',`${ym}-31`);
+  const { data: tx = [] } = await supabaseClient.from('transactions')
+    .select('id,date,type,amount,notes,category_id')
+    .eq('user_id', user.id)
+    .gte('date', `${ym}-01`).lte('date', `${ym}-31`);
 
 
-  $('calendar').innerHTML='';
-  const startDay=new Date(viewDate.getFullYear(),viewDate.getMonth(),1).getDay();
-  const days=new Date(viewDate.getFullYear(),viewDate.getMonth()+1,0).getDate();
-  for(let i=0;i<startDay;i++)$('calendar').appendChild(document.createElement('div'));
-  for(let d=1;d<=days;d++){
-    const dateStr=`${viewDate.getFullYear()}-${String(viewDate.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const todays=tx.filter(t=>t.date===dateStr);
-    const inc=todays.filter(t=>t.type==='income').reduce((s,t)=>s+Number(t.amount),0);
-    const exp=todays.filter(t=>t.type==='expense').reduce((s,t)=>s+Number(t.amount),0);
-    const cell=document.createElement('div'); cell.className='calendar-day';
-    const header=document.createElement('div'); header.className='header';
-    const left=document.createElement('div'); left.className='date-num'; left.textContent=d;
-    if(new Date().toISOString().slice(0,10)===dateStr) left.style.color='#10b981';
-    const right=document.createElement('div'); right.className='small-note';
-    right.innerHTML=`<span class="income">+₹${inc}</span> <span class="expense">-₹${exp}</span>`;
+  $('calendar').innerHTML = '';
+  const startDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
+  const days = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
+  for (let i = 0; i < startDay; i++)$('calendar').appendChild(document.createElement('div'));
+  for (let d = 1; d <= days; d++) {
+    const dateStr = `${viewDate.getFullYear()}-${String(viewDate.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const todays = tx.filter(t => t.date === dateStr);
+    const inc = todays.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+    const exp = todays.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+    const cell = document.createElement('div'); cell.className = 'calendar-day';
+    const header = document.createElement('div'); header.className = 'header';
+    const left = document.createElement('div'); left.className = 'date-num'; left.textContent = d;
+    if (new Date().toISOString().slice(0, 10) === dateStr) left.style.color = '#10b981';
+    const right = document.createElement('div'); right.className = 'small-note';
+    right.innerHTML = `<span class="income">+₹${inc}</span> <span class="expense">-₹${exp}</span>`;
     header.appendChild(left); header.appendChild(right); cell.appendChild(header);
     $('calendar').appendChild(cell);
 
@@ -576,12 +608,12 @@ async function renderCalendar(){
         const name = catIdToName?.[cid] || 'Uncategorized';
         return [name, total];
       })
-      .sort((a,b) => b[1] - a[1])
+      .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
       .map(([name, total]) => `• ${name}: ₹${total}`);
 
     if (topLines.length) {
-      const list = document.createElement('div'); 
+      const list = document.createElement('div');
       list.className = 'cat-list';
       list.innerHTML = topLines.join('<br>');
       cell.appendChild(list);
@@ -592,73 +624,73 @@ async function renderCalendar(){
 }
 
 
-function calendarClear(){ $('calendar').innerHTML=''; }
-function calendarAppend(el){ $('calendar').appendChild(el); }
+function calendarClear() { $('calendar').innerHTML = ''; }
+function calendarAppend(el) { $('calendar').appendChild(el); }
 
-async function renderTable(){
+async function renderTable() {
   const ym = keyFor(viewDate);
   $('monthLabel').textContent = `${monthNames[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
 
   const { data: { session } } = await supabaseClient.auth.getSession();
   const user = session.user;
 
-  const { data:tx=[] } = await supabaseClient.from('transactions')
-  .select('id,date,type,amount,notes,category_id')
-  .eq('user_id',user.id)
-  .gte('date',`${ym}-01`).lte('date',`${ym}-31`);
+  const { data: tx = [] } = await supabaseClient.from('transactions')
+    .select('id,date,type,amount,notes,category_id')
+    .eq('user_id', user.id)
+    .gte('date', `${ym}-01`).lte('date', `${ym}-31`);
 
 
-  const tbody=$('txBody'); tbody.innerHTML='';
-  tx.sort((a,b)=>a.date.localeCompare(b.date)).forEach(t=>{
+  const tbody = $('txBody'); tbody.innerHTML = '';
+  tx.sort((a, b) => a.date.localeCompare(b.date)).forEach(t => {
     const catName = catIdToName[String(t.category_id)] || t.category || '';
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${t.date}</td><td class="${t.type==='income'?'text-success':'text-danger'}">${t.type}</td><td>${catName}</td><td class="text-end">₹${t.amount}</td><td>${t.notes||''}</td><td class="text-end"><button class="btn btn-sm btn-outline-danger" data-id="${t.id}">Delete</button></td>`;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${t.date}</td><td class="${t.type === 'income' ? 'text-success' : 'text-danger'}">${t.type}</td><td>${catName}</td><td class="text-end">₹${t.amount}</td><td>${t.notes || ''}</td><td class="text-end"><button class="btn btn-sm btn-outline-danger" data-id="${t.id}">Delete</button></td>`;
     tbody.appendChild(tr);
-    tr.querySelector('button').onclick=async()=>{
-      if(confirm('Delete transaction?')){
-        const { error } = await supabaseClient.from('transactions').delete().eq('id',t.id);
-        if(error){ console.error("Delete failed:", error); alert(error.message); }
+    tr.querySelector('button').onclick = async () => {
+      if (confirm('Delete transaction?')) {
+        const { error } = await supabaseClient.from('transactions').delete().eq('id', t.id);
+        if (error) { console.error("Delete failed:", error); alert(error.message); }
         renderAll();
       }
     };
   });
 }
 
-async function renderCharts(){
+async function renderCharts() {
   const ym = keyFor(viewDate);
   $('monthLabel').textContent = `${monthNames[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
 
   const { data: { session } } = await supabaseClient.auth.getSession();
   const user = session.user;
 
-  const { data:tx=[] } = await supabaseClient.from('transactions')
-  .select('id,date,type,amount,notes,category_id')
-  .eq('user_id',user.id)
-  .gte('date',`${ym}-01`).lte('date',`${ym}-31`);
-  
+  const { data: tx = [] } = await supabaseClient.from('transactions')
+    .select('id,date,type,amount,notes,category_id')
+    .eq('user_id', user.id)
+    .gte('date', `${ym}-01`).lte('date', `${ym}-31`);
 
-  const catTotals={};
-  tx.filter(t=>t.type==='expense').forEach(t=>{
+
+  const catTotals = {};
+  tx.filter(t => t.type === 'expense').forEach(t => {
     const name = catIdToName[String(t.category_id)] || 'Other';
-    catTotals[name] = (catTotals[name]||0) + Number(t.amount);
+    catTotals[name] = (catTotals[name] || 0) + Number(t.amount);
   });
-  const labels=Object.keys(catTotals),data=Object.values(catTotals);
-  const weeks=[0,0,0,0,0];
-  tx.filter(t=>t.type==='expense').forEach(t=>{
-    const day=+t.date.split('-')[2];
-    weeks[Math.min(4,Math.floor((day-1)/7))]+=Number(t.amount);
+  const labels = Object.keys(catTotals), data = Object.values(catTotals);
+  const weeks = [0, 0, 0, 0, 0];
+  tx.filter(t => t.type === 'expense').forEach(t => {
+    const day = +t.date.split('-')[2];
+    weeks[Math.min(4, Math.floor((day - 1) / 7))] += Number(t.amount);
   });
-  try{ if(pieChart) pieChart.destroy(); }catch(e){}
-  try{ if(barChart) barChart.destroy(); }catch(e){}
-  pieChart=new Chart($('pieChart').getContext('2d'),{type:'pie',data:{labels,datasets:[{data,backgroundColor:['#ff7b7b','#7db8ff','#7ee4b7','#ffd27a','#bda1ff','#9be7ff','#ffc9de']}]},options:{plugins:{legend:{position:'bottom'}},maintainAspectRatio:false}});
-  barChart=new Chart($('barChart').getContext('2d'),{type:'bar',data:{labels:['Week 1','Week 2','Week 3','Week 4','Week 5'],datasets:[{label:'Expense',data:weeks,backgroundColor:'#4f46e5'}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}},maintainAspectRatio:false}});
+  try { if (pieChart) pieChart.destroy(); } catch (e) { }
+  try { if (barChart) barChart.destroy(); } catch (e) { }
+  pieChart = new Chart($('pieChart').getContext('2d'), { type: 'pie', data: { labels, datasets: [{ data, backgroundColor: ['#ff7b7b', '#7db8ff', '#7ee4b7', '#ffd27a', '#bda1ff', '#9be7ff', '#ffc9de'] }] }, options: { plugins: { legend: { position: 'bottom' } }, maintainAspectRatio: false } });
+  barChart = new Chart($('barChart').getContext('2d'), { type: 'bar', data: { labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5'], datasets: [{ label: 'Expense', data: weeks, backgroundColor: '#4f46e5' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } }, maintainAspectRatio: false } });
 }
 
 // boot
-(function boot(){
+(function boot() {
   ensureMonth(keyFor(viewDate));
   // Restore theme
-  const theme = localStorage.getItem('ft_theme'); if(theme==='dark'){ document.documentElement.setAttribute('data-bs-theme','dark'); $('darkToggleBtn').textContent='☀️ Light'; } else { document.documentElement.setAttribute('data-bs-theme','light'); $('darkToggleBtn').textContent='🌙 Dark'; }
+  const theme = localStorage.getItem('ft_theme'); if (theme === 'dark') { document.documentElement.setAttribute('data-bs-theme', 'dark'); $('darkToggleBtn').textContent = '☀️ Light'; } else { document.documentElement.setAttribute('data-bs-theme', 'light'); $('darkToggleBtn').textContent = '🌙 Dark'; }
 
   renderAll();
 })();
