@@ -62,6 +62,10 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
 
 
 async function renderYearly(year) {
+   try {
+    showLoader();   // 👈 start loader before anything
+
+
   const summaryData = [];
   const categoryTotals = {};
   const monthlyCategory = Array.from({ length: 12 }, () => ({}));
@@ -231,8 +235,22 @@ async function renderYearly(year) {
     XLSX.utils.book_append_sheet(wb, ws3, 'Category by Month');
     XLSX.writeFile(wb, `Yearly_Summary_${year}.xlsx`);
   };
+
+  } catch (err) {
+    console.error("Error in renderAll:", err);
+  } finally {
+    hideLoader();   // 👈 always stop loader, even if error
+  }
 }
 
+
+function showLoader() {
+  document.getElementById("loader").style.display = "flex";
+}
+
+function hideLoader() {
+  document.getElementById("loader").style.display = "none";
+}
 
 let catIdToName = Object.create(null);
 

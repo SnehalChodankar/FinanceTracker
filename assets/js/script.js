@@ -492,10 +492,15 @@ async function renderSummary() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   const user = session.user;
 
+  const [year, month] = ym.split("-").map(Number);
+
+  // Get last day of the month safely
+  const lastDay = new Date(year, month, 0).getDate(); 
+
   const { data: tx = [] } = await supabaseClient.from('transactions')
     .select('id,date,type,amount,notes,category_id')
     .eq('user_id', user.id)
-    .gte('date', `${ym}-01`).lte('date', `${ym}-31`);
+    .gte('date', `${ym}-01`).lte('date', `${ym}-${lastDay}`);
 
   const { data: bal } = await supabaseClient.from('balances').select('*')
     .eq('user_id', user.id)
@@ -511,6 +516,14 @@ async function renderSummary() {
   $('sumBalance').textContent = `₹${(bal?.starting_balance || 0) + inc - exp}`;
 }
 
+function showLoader() {
+  document.getElementById("loader").style.display = "flex";
+}
+
+function hideLoader() {
+  document.getElementById("loader").style.display = "none";
+}
+
 
 async function renderBudgetProgress() {
   const ym = keyFor(viewDate);
@@ -523,11 +536,15 @@ async function renderBudgetProgress() {
     .eq('user_id', user.id)
     .eq('year_month', ym);
 
+  const [year, month] = ym.split("-").map(Number);
+
+  const lastDay = new Date(year, month, 0).getDate(); 
+
 
   const { data: tx = [] } = await supabaseClient.from('transactions')
     .select('id,date,type,amount,notes,category_id')
     .eq('user_id', user.id)
-    .gte('date', `${ym}-01`).lte('date', `${ym}-31`);
+    .gte('date', `${ym}-01`).lte('date', `${ym}-${lastDay}`);
 
   // spent per category id
   const spentById = {};
@@ -570,10 +587,14 @@ async function renderCalendar() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   const user = session.user;
 
+  const [year, month] = ym.split("-").map(Number);
+
+  const lastDay = new Date(year, month, 0).getDate();
+
   const { data: tx = [] } = await supabaseClient.from('transactions')
     .select('id,date,type,amount,notes,category_id')
     .eq('user_id', user.id)
-    .gte('date', `${ym}-01`).lte('date', `${ym}-31`);
+    .gte('date', `${ym}-01`).lte('date', `${ym}-${lastDay}`);
 
 
   $('calendar').innerHTML = '';
@@ -634,10 +655,14 @@ async function renderTable() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   const user = session.user;
 
+  const [year, month] = ym.split("-").map(Number);
+
+  const lastDay = new Date(year, month, 0).getDate();
+
   const { data: tx = [] } = await supabaseClient.from('transactions')
     .select('id,date,type,amount,notes,category_id')
     .eq('user_id', user.id)
-    .gte('date', `${ym}-01`).lte('date', `${ym}-31`);
+    .gte('date', `${ym}-01`).lte('date', `${ym}-${lastDay}`);
 
 
   const tbody = $('txBody'); tbody.innerHTML = '';
@@ -663,10 +688,14 @@ async function renderCharts() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   const user = session.user;
 
+  const [year, month] = ym.split("-").map(Number);
+
+  const lastDay = new Date(year, month, 0).getDate();  
+
   const { data: tx = [] } = await supabaseClient.from('transactions')
     .select('id,date,type,amount,notes,category_id')
     .eq('user_id', user.id)
-    .gte('date', `${ym}-01`).lte('date', `${ym}-31`);
+    .gte('date', `${ym}-01`).lte('date', `${ym}-${lastDay}`);
 
 
   const catTotals = {};
